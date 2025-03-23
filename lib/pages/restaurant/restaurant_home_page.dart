@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/user_service.dart';
 import 'restaurant_dashboard_page.dart';
 import 'restaurant_menu_page.dart';
@@ -24,6 +25,51 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
     const RestaurantAnalyticsPage(),
     const RestaurantProfilePage(),
   ];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRestaurantDetails();
+  }
+
+  Future<void> _checkRestaurantDetails() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userData = await UserService.getUserData(user.uid);
+        
+        if (!userData.exists || _isRestaurantDetailsMissing(userData.data() as Map<String, dynamic>)) {
+          // If restaurant details are missing, navigate to the details page
+          if (mounted) {
+            _navigateToRestaurantDetails();
+          }
+        }
+      }
+    } catch (e) {
+      print('Error checking restaurant details: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  bool _isRestaurantDetailsMissing(Map<String, dynamic> userData) {
+    // Check if essential restaurant details are missing
+    return userData['name'] == null || 
+           userData['name'].toString().isEmpty ||
+           userData['phoneNumber'] == null || 
+           userData['phoneNumber'].toString().isEmpty ||
+           userData['address'] == null || 
+           userData['address'].toString().isEmpty;
+  }
 
   Future<void> _handleSignOut(BuildContext context) async {
     try {
@@ -45,6 +91,12 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Restaurant Dashboard'),

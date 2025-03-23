@@ -32,7 +32,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         'description': 'Fresh romaine lettuce with Caesar dressing, croutons, and parmesan cheese',
         'price': 8.99,
         'category': 'appetizers',
-        'image': 'https://via.placeholder.com/150',
+        'image': 'https://picsum.photos//150',
         'isAvailable': true,
       },
       {
@@ -41,7 +41,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         'description': 'Grilled salmon with herbs, served with vegetables and mashed potatoes',
         'price': 18.99,
         'category': 'main_courses',
-        'image': 'https://via.placeholder.com/150',
+        'image': 'https://picsum.photos//150',
         'isAvailable': true,
       },
       {
@@ -50,7 +50,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         'description': 'Rich chocolate cake with a molten center',
         'price': 6.99,
         'category': 'desserts',
-        'image': 'https://via.placeholder.com/150',
+        'image': 'https://picsum.photos//150',
         'isAvailable': true,
       },
       {
@@ -59,7 +59,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         'description': 'Refreshing iced tea with lemon',
         'price': 2.99,
         'category': 'beverages',
-        'image': 'https://via.placeholder.com/150',
+        'image': 'https://picsum.photos//150',
         'isAvailable': false,
       },
     ];
@@ -79,7 +79,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         : Scaffold(
             floatingActionButton: FloatingActionButton(
               onPressed: () {
-                // TODO: Navigate to add menu item page
+                _showAddItemDialog();
               },
               child: const Icon(Icons.add),
             ),
@@ -183,7 +183,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
-                // TODO: Navigate to add menu item page
+                _showAddItemDialog();
               },
               icon: const Icon(Icons.add),
               label: const Text('Add Menu Item'),
@@ -269,7 +269,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             onPressed: () {
-                              // TODO: Edit menu item
+                              _showAddItemDialog(item: item);
                             },
                           ),
                           const SizedBox(width: 16),
@@ -278,7 +278,6 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             onPressed: () {
-                              // TODO: Delete menu item
                               _showDeleteConfirmation(item);
                             },
                           ),
@@ -323,7 +322,6 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
                 style: TextStyle(color: Colors.red),
               ),
               onPressed: () {
-                // TODO: Implement delete functionality
                 setState(() {
                   _menuItems.removeWhere((menuItem) => menuItem['id'] == item['id']);
                 });
@@ -334,5 +332,134 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         );
       },
     );
+  }
+
+  Future<void> _showAddItemDialog({Map<String, dynamic>? item}) async {
+    final TextEditingController nameController = TextEditingController(text: item?['name'] ?? '');
+    final TextEditingController descriptionController = TextEditingController(text: item?['description'] ?? '');
+    final TextEditingController priceController = TextEditingController(text: item?['price']?.toString() ?? '');
+    
+    String selectedCategory = item?['category'] ?? _categories[1]['id']; // Default to first non-All category
+    
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(item != null ? 'Edit Dish' : 'Add New Dish'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Dish Name',
+                    hintText: 'Enter dish name',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Dish Type',
+                  ),
+                  items: _categories.where((category) => category['id'] != 'all').map((category) {
+                    return DropdownMenuItem<String>(
+                      value: category['id'],
+                      child: Text(category['name']),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    selectedCategory = value!;
+                  },
+                ),
+                
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Enter dish description',
+                  ),
+                  maxLines: 3,
+                ),
+                
+                const SizedBox(height: 16),
+                TextField(
+                  controller: priceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Price (\$)',
+                    hintText: 'Enter dish price',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                // Validate inputs
+                if (nameController.text.trim().isEmpty || 
+                    descriptionController.text.trim().isEmpty ||
+                    priceController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill all fields')),
+                  );
+                  return;
+                }
+                
+                double? price = double.tryParse(priceController.text.trim());
+                if (price == null || price <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid price')),
+                  );
+                  return;
+                }
+                
+                final newItem = {
+                  'id': item?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                  'name': nameController.text.trim(),
+                  'description': descriptionController.text.trim(),
+                  'price': price,
+                  'category': selectedCategory,
+                  'image': item?['image'] ?? 'https://picsum.photos//150',
+                  'isAvailable': item?['isAvailable'] ?? true,
+                };
+                
+                setState(() {
+                  if (item != null) {
+                    // Edit existing item
+                    final index = _menuItems.indexWhere((menuItem) => menuItem['id'] == item['id']);
+                    if (index != -1) {
+                      _menuItems[index] = newItem;
+                    }
+                  } else {
+                    // Add new item
+                    _menuItems.add(newItem);
+                  }
+                });
+                
+                Navigator.of(context).pop();
+              },
+              child: Text(item != null ? 'Update' : 'Add'),
+            ),
+          ],
+        );
+      },
+    ).then((_) => {
+      // Dispose controllers when dialog is closed
+      nameController.dispose(),
+      descriptionController.dispose(),
+      priceController.dispose(),
+    });
   }
 } 
