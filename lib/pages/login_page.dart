@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
 import '../models/user_model.dart';
 
@@ -17,6 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   String? _errorMessage;
+  String _selectedRole = 'customer'; // Default role
 
   Future<void> _handleGoogleSignIn() async {
     if (!mounted) return;
@@ -27,7 +29,31 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final userCredential = await UserService.signInWithGoogle();
+      // Check if the email is already used for a different role
+      final googleUser = await UserService.getGoogleUser();
+      if (googleUser == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Google sign-in was cancelled.';
+        });
+        return;
+      }
+      
+      final googleEmail = googleUser.email;
+      
+      // Check if email exists with a different role
+      final isEmailUsedWithDifferentRole = await _checkEmailWithRole(googleEmail, _selectedRole);
+      
+      if (isEmailUsedWithDifferentRole) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'This email is already registered with a different role. Please use a different email or sign in with the correct role.';
+        });
+        return;
+      }
+      
+      // Proceed with sign-in
+      final userCredential = await UserService.signInWithGoogle(role: _selectedRole);
       
       if (!mounted) return;
       
@@ -44,19 +70,60 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<bool> _checkEmailWithRole(String email, String selectedRole) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .get();
+      
+      if (querySnapshot.docs.isEmpty) {
+        return false; // Email doesn't exist yet
+      }
+      
+      // Check if the existing user has a different role
+      for (var doc in querySnapshot.docs) {
+        final userData = doc.data();
+        final existingRole = userData['metadata']?['role'] as String?;
+        if (existingRole != null && existingRole != selectedRole) {
+          return true; // Email exists with a different role
+        }
+      }
+      
+      return false; // Email exists but with the same role
+    } catch (e) {
+      print('Error checking email role: $e');
+      return false;
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
 
       try {
+        final email = _emailController.text.trim();
+        
+        // Check if email exists with a different role
+        final isEmailUsedWithDifferentRole = await _checkEmailWithRole(email, _selectedRole);
+        
+        if (isEmailUsedWithDifferentRole) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'This email is already registered with a different role. Please use a different email or sign in with the correct role.';
+          });
+          return;
+        }
+        
         // Sign in with Firebase Auth
         await UserService.signInWithEmail(
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text,
+          role: _selectedRole,
         );
-
 
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/home');
@@ -112,13 +179,50 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'Restaurant Finder',
+                    'Greedy Bites',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Select Your Role',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Role selection segment
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'customer',
+                        label: Text('Customer'),
+                        icon: Icon(Icons.person),
+                      ),
+                      ButtonSegment(
+                        value: 'blogger',
+                        label: Text('Blogger'),
+                        icon: Icon(Icons.edit),
+                      ),
+                      ButtonSegment(
+                        value: 'restaurant',
+                        label: Text('Restaurant'),
+                        icon: Icon(Icons.restaurant),
+                      ),
+                    ],
+                    selected: {_selectedRole},
+                    onSelectionChanged: (Set<String> newSelection) {
+                      setState(() {
+                        _selectedRole = newSelection.first;
+                      });
+                    },
+                  ),
+                  
+                  const SizedBox(height: 24),
                   if (_errorMessage != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
@@ -128,6 +232,7 @@ class _LoginPageState extends State<LoginPage> {
                           color: Colors.red,
                           fontSize: 14,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   TextFormField(
@@ -201,9 +306,9 @@ class _LoginPageState extends State<LoginPage> {
                                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
-                          : const Text(
-                              'Login',
-                              style: TextStyle(fontSize: 16),
+                          : Text(
+                              'Login as ${_selectedRole.substring(0, 1).toUpperCase() + _selectedRole.substring(1)}',
+                              style: const TextStyle(fontSize: 16),
                             ),
                     ),
                   ),
@@ -226,7 +331,7 @@ class _LoginPageState extends State<LoginPage> {
                         size: 24,
                         color: Colors.red,
                       ),
-                      label: const Text('Sign in with Google'),
+                      label: Text('Sign in with Google as ${_selectedRole.substring(0, 1).toUpperCase() + _selectedRole.substring(1)}'),
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

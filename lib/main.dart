@@ -4,7 +4,7 @@ import 'widgets/initialization_widget.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/home_page.dart';
-import 'widgets/auth_guard.dart';
+import 'widgets/role_based_auth_guard.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
@@ -55,11 +55,11 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const InitializationWidget(),
+      home: const RoleBasedAuthGuard(),
       routes: {
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
-        '/home': (context) => const AuthGuard(child: HomePage()),
+        '/home': (context) => const RoleBasedAuthGuard(),
       },
     );
   }

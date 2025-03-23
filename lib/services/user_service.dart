@@ -112,49 +112,21 @@ class UserService {
     return UserModel.fromMap(doc.data() as Map<String, dynamic>);
   }
 
-  static Future<UserCredential> signUpWithEmail({
-    required String email,
-    required String password,
-    required String name,
-    required String username,
-    String? phoneNumber,
-  }) async {
+  static Future<GoogleSignInAccount?> getGoogleUser() async {
     try {
-      // Create user in Firebase Auth
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      // Create user in Firestore
-      final user = UserModel(
-        id: userCredential.user!.uid,
-        email: email,
-        name: name,
-        username: username,
-        phoneNumber: phoneNumber,
-        createdAt: DateTime.now(),
-        lastLoginAt: DateTime.now(),
-        isEmailVerified: userCredential.user!.emailVerified,
-        metadata: {
-          'createdBy': 'email',
-          'accountType': 'email',
-          'role': 'user',
-          'createdAt': DateTime.now().toIso8601String(),
-        },
-      );
-
-      await createUser(user);
-      return userCredential;
+      // Trigger the authentication flow without signing in
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      return googleUser;
     } catch (e) {
-      print('Error signing up user: $e');
-      rethrow;
+      print('Error getting Google user: $e');
+      return null;
     }
   }
 
   static Future<UserCredential> signInWithEmail({
     required String email,
     required String password,
+    required String role,
   }) async {
     try {
       final userCredential = await _auth.signInWithEmailAndPassword(
@@ -178,23 +150,31 @@ class UserService {
           metadata: {
             'createdBy': 'email',
             'accountType': 'email',
-            'role': 'user',
+            'role': role,
             'createdAt': DateTime.now().toIso8601String(),
           },
         );
         
         await createUser(newUser);
       } else {
-        // Update last login time
+        // Get existing user data
+        final userData = userDoc.data() as Map<String, dynamic>;
+        final metadata = Map<String, dynamic>.from(userData['metadata']);
+        
+        // Update last login time and ensure role is set
+        if (!metadata.containsKey('role')) {
+          metadata['role'] = role;
+        }
+        
         await updateUser(UserModel(
           id: userCredential.user!.uid,
           email: userCredential.user!.email!,
           name: userCredential.user!.displayName ?? email.split('@')[0],
           username: email.split('@')[0],
-          createdAt: (userDoc.data() as Map<String, dynamic>)['createdAt'].toDate(),
+          createdAt: userData['createdAt'].toDate(),
           lastLoginAt: DateTime.now(),
           isEmailVerified: userCredential.user!.emailVerified,
-          metadata: Map<String, dynamic>.from((userDoc.data() as Map<String, dynamic>)['metadata']),
+          metadata: metadata,
         ));
       }
 
@@ -205,7 +185,7 @@ class UserService {
     }
   }
 
-  static Future<UserCredential> signInWithGoogle() async {
+  static Future<UserCredential> signInWithGoogle({required String role}) async {
     try {
       // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -249,18 +229,22 @@ class UserService {
               'lastPasswordChange': DateTime.now().toIso8601String(),
               'createdBy': 'google',
               'accountType': 'google',
-              'role': 'user',
+              'role': role,
+              'createdAt': DateTime.now().toIso8601String(),
             },
           );
           
           await createUser(newUser);
         } else {
-          // Update last login time and photo URL if changed
-          final updates = {
-            'lastLoginAt': FieldValue.serverTimestamp(),
-            if (userCredential.user!.photoURL != null)
-              'profileImageUrl': userCredential.user!.photoURL,
-          };
+          // Get existing user data
+          final userData = userDoc.data() as Map<String, dynamic>;
+          final metadata = Map<String, dynamic>.from(userData['metadata']);
+          
+          // Update last login time and ensure role is set
+          if (!metadata.containsKey('role')) {
+            metadata['role'] = role;
+          }
+          
           await updateUser(UserModel(
             id: userCredential.user!.uid,
             email: userCredential.user!.email!,
@@ -268,22 +252,86 @@ class UserService {
             username: userCredential.user!.email!.split('@')[0],
             phoneNumber: userCredential.user!.phoneNumber,
             profileImageUrl: userCredential.user!.photoURL,
-            createdAt: DateTime.now(),
+            createdAt: userData['createdAt'].toDate(),
             lastLoginAt: DateTime.now(),
             isEmailVerified: userCredential.user!.emailVerified,
-            metadata: Map<String, dynamic>.from(userDoc.data() as Map<String, dynamic>)['metadata'],
+            metadata: metadata,
           ));
         }
 
         return userCredential;
       } catch (e) {
-        print('Error during Google authentication: $e');
-        await _googleSignIn.signOut(); // Clean up on error
+        print('Firebase Auth Error: $e');
         rethrow;
       }
     } catch (e) {
-      print('Error signing in with Google: $e');
+      print('Google Sign-In Error: $e');
       rethrow;
+    }
+  }
+
+  static Future<UserCredential> signUpWithEmail({
+    required String email,
+    required String password,
+    required String name,
+    required String username,
+    String? phoneNumber,
+    required String role,
+  }) async {
+    try {
+      // Create user in Firebase Auth
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Create user in Firestore
+      final user = UserModel(
+        id: userCredential.user!.uid,
+        email: email,
+        name: name,
+        username: username,
+        phoneNumber: phoneNumber,
+        createdAt: DateTime.now(),
+        lastLoginAt: DateTime.now(),
+        isEmailVerified: userCredential.user!.emailVerified,
+        metadata: {
+          'createdBy': 'email',
+          'accountType': 'email',
+          'role': role,
+          'createdAt': DateTime.now().toIso8601String(),
+        },
+      );
+
+      await createUser(user);
+      return userCredential;
+    } catch (e) {
+      print('Error signing up user: $e');
+      rethrow;
+    }
+  }
+
+  // Check if email is already used with a specific role
+  static Future<bool> isEmailUsedWithRole(String email, String role) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .get();
+      
+      for (var doc in querySnapshot.docs) {
+        final userData = doc.data();
+        final existingRole = userData['metadata']?['role'] as String?;
+        
+        if (existingRole != null && existingRole != role) {
+          return true; // Email exists with a different role
+        }
+      }
+      
+      return false; // Email doesn't exist or exists with the same role
+    } catch (e) {
+      print('Error checking email with role: $e');
+      return false;
     }
   }
 

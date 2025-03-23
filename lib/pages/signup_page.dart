@@ -18,6 +18,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _phoneController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  String _selectedRole = 'customer'; // Default role
 
   Future<void> _handleSignUp() async {
     if (_formKey.currentState!.validate()) {
@@ -27,6 +28,22 @@ class _SignUpPageState extends State<SignUpPage> {
       });
 
       try {
+        final email = _emailController.text.trim();
+        
+        // Check if email is already used with a different role
+        final isEmailUsedWithDifferentRole = await UserService.isEmailUsedWithRole(
+          email, 
+          _selectedRole
+        );
+        
+        if (isEmailUsedWithDifferentRole) {
+          setState(() {
+            _errorMessage = 'This email is already registered with a different role. Please use a different email.';
+            _isLoading = false;
+          });
+          return;
+        }
+
         // Check if username is available
         final isUsernameAvailable = await UserService.isUsernameAvailable(
           _usernameController.text.trim(),
@@ -42,11 +59,12 @@ class _SignUpPageState extends State<SignUpPage> {
 
         // Create user with Firebase Auth and Firestore
         await UserService.signUpWithEmail(
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text.trim(),
           name: _nameController.text.trim(),
           username: _usernameController.text.trim(),
           phoneNumber: _phoneController.text.trim(),
+          role: _selectedRole,
         );
 
         if (mounted) {
@@ -103,8 +121,45 @@ class _SignUpPageState extends State<SignUpPage> {
                         color: Colors.red,
                         fontSize: 14,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
+                const Text(
+                  'Select Your Role',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Role selection segment
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'customer',
+                      label: Text('Customer'),
+                      icon: Icon(Icons.person),
+                    ),
+                    ButtonSegment(
+                      value: 'blogger',
+                      label: Text('Blogger'),
+                      icon: Icon(Icons.edit),
+                    ),
+                    ButtonSegment(
+                      value: 'restaurant',
+                      label: Text('Restaurant'),
+                      icon: Icon(Icons.restaurant),
+                    ),
+                  ],
+                  selected: {_selectedRole},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    setState(() {
+                      _selectedRole = newSelection.first;
+                    });
+                  },
+                ),
+                const SizedBox(height: 24),
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -189,15 +244,26 @@ class _SignUpPageState extends State<SignUpPage> {
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _handleSignUp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   child: _isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text('Sign Up'),
+                      : Text(
+                          'Sign Up as ${_selectedRole.substring(0, 1).toUpperCase() + _selectedRole.substring(1)}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
                 ),
                 const SizedBox(height: 16),
                 TextButton(

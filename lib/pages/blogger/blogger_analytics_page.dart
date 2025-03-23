@@ -1,0 +1,340 @@
+import 'package:flutter/material.dart';
+
+class BloggerAnalyticsPage extends StatefulWidget {
+  const BloggerAnalyticsPage({super.key});
+
+  @override
+  State<BloggerAnalyticsPage> createState() => _BloggerAnalyticsPageState();
+}
+
+class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
+  bool _isLoading = false;
+  String _selectedPeriod = 'This Week';
+
+  @override
+  Widget build(BuildContext context) {
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with time period selector
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Analytics',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    DropdownButton<String>(
+                      value: _selectedPeriod,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Today',
+                          child: Text('Today'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'This Week',
+                          child: Text('This Week'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'This Month',
+                          child: Text('This Month'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'All Time',
+                          child: Text('All Time'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedPeriod = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Key metrics
+                const Text(
+                  'Key Metrics',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildMetricCard('Total Views', '542', Icons.visibility, Colors.blue),
+                    const SizedBox(width: 16),
+                    _buildMetricCard('Likes', '128', Icons.favorite, Colors.red),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildMetricCard('Comments', '24', Icons.comment, Colors.orange),
+                    const SizedBox(width: 16),
+                    _buildMetricCard('Shares', '18', Icons.share, Colors.green),
+                  ],
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Performance graph placeholder
+                const Text(
+                  'Performance',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.insert_chart_outlined,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Performance Graph',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Top posts
+                const Text(
+                  'Top Performing Posts',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildTopPostCard(
+                  'Getting Started with Food Blogging',
+                  'Lorem ipsum dolor sit amet...',
+                  245,
+                  32,
+                  'https://via.placeholder.com/150',
+                ),
+                const SizedBox(height: 16),
+                _buildTopPostCard(
+                  'Top 10 Street Foods You Must Try',
+                  'Lorem ipsum dolor sit amet...',
+                  187,
+                  24,
+                  'https://via.placeholder.com/150',
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Audience insights
+                const Text(
+                  'Audience Insights',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Top Locations',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildLocationRow('New York', 37),
+                        const SizedBox(height: 8),
+                        _buildLocationRow('Los Angeles', 25),
+                        const SizedBox(height: 8),
+                        _buildLocationRow('Chicago', 18),
+                        const SizedBox(height: 8),
+                        _buildLocationRow('Miami', 12),
+                        const SizedBox(height: 8),
+                        _buildLocationRow('Other', 8),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+  }
+
+  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopPostCard(String title, String preview, int views, int likes, String image) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                image,
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    preview,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$views',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$likes',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationRow(String location, int percentage) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: Text(location),
+        ),
+        Expanded(
+          flex: 7,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LinearProgressIndicator(
+                value: percentage / 100,
+                backgroundColor: Colors.grey[200],
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$percentage%',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+} 

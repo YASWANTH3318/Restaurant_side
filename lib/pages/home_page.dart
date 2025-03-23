@@ -125,6 +125,8 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: Container(),
+        automaticallyImplyLeading: false,
         title: const Text('Greedy Bites'),
         actions: [
           // Development only button

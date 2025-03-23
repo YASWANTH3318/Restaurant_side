@@ -43,12 +43,13 @@ dependencies:
   # Other useful dependencies
   provider: ^6.1.1
   shared_preferences: ^2.2.2
-  image_picker: ^1.0.5
+  image_picker: ^1.1.2
   cached_network_image: ^3.3.0
   flutter_cache_manager: ^3.3.1
   intl: ^0.19.0
   logger: ^2.0.2+1
   video_player: ^2.8.1
+  fl_chart: ^0.65.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
