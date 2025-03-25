@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/user_service.dart';
+import 'create_post_page.dart';
+import 'create_reel_page.dart';
 
 class BloggerDashboardPage extends StatefulWidget {
   const BloggerDashboardPage({super.key});
@@ -107,12 +109,37 @@ class _BloggerDashboardPageState extends State<BloggerDashboardPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        // Navigate to create post page
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Create Post'),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            // Navigate to create post page
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CreatePostPage(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.post_add),
+                          label: const Text('Create Post'),
+                        ),
+                        const SizedBox(width: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            // Navigate to create reel page
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CreateReelPage(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.video_library_outlined),
+                          label: const Text('Create Reel'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

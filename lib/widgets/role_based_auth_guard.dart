@@ -55,16 +55,34 @@ class RoleBasedAuthGuard extends StatelessWidget {
             }
 
             final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-            final role = userData['role'] as String? ?? 'user';
+            
+            // Check for role in both locations - either root level or metadata
+            String? role;
+            if (userData.containsKey('role')) {
+              role = userData['role'] as String?;
+            } else if (userData.containsKey('metadata') && 
+                       userData['metadata'] is Map<String, dynamic> &&
+                       (userData['metadata'] as Map<String, dynamic>).containsKey('role')) {
+              role = userData['metadata']['role'] as String?;
+            }
+            
+            role = role ?? 'user'; // Default to user if no role found
+            
+            print('User role from Firestore: $role');
+            print('User data: $userData');
 
             // Route based on user role
             switch (role) {
               case 'blogger':
+                print('Navigating to blogger home page');
                 return const BloggerHomePage();
               case 'restaurant':
+                print('Navigating to restaurant home page');
                 return const RestaurantHomePage();
+              case 'customer':
               case 'user':
               default:
+                print('Navigating to default home page');
                 return const HomePage();
             }
           },

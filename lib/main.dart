@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 import 'pages/restaurant/restaurant_home_page.dart';
+import 'pages/blogger/blogger_home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +63,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => const RoleBasedAuthGuard(),
         '/restaurant/home': (context) => const RestaurantHomePage(),
+        '/blogger-home': (context) => const BloggerHomePage(),
       },
     );
   }

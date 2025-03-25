@@ -57,7 +57,19 @@ class _LoginPageState extends State<LoginPage> {
       
       if (!mounted) return;
       
-      Navigator.pushReplacementNamed(context, '/home');
+      // Navigate based on role
+      switch (_selectedRole) {
+        case 'blogger':
+          Navigator.pushReplacementNamed(context, '/blogger-home');
+          break;
+        case 'restaurant':
+          Navigator.pushReplacementNamed(context, '/restaurant/home');
+          break;
+        case 'customer':
+        default:
+          Navigator.pushReplacementNamed(context, '/home');
+          break;
+      }
     } catch (e) {
       print('Google Sign-In Error: $e');
       
@@ -126,7 +138,19 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
+          // Navigate based on role
+          switch (_selectedRole) {
+            case 'blogger':
+              Navigator.pushReplacementNamed(context, '/blogger-home');
+              break;
+            case 'restaurant':
+              Navigator.pushReplacementNamed(context, '/restaurant/home');
+              break;
+            case 'customer':
+            default:
+              Navigator.pushReplacementNamed(context, '/home');
+              break;
+          }
         }
       } on FirebaseAuthException catch (e) {
         print('Firebase Auth Error: ${e.message}');
