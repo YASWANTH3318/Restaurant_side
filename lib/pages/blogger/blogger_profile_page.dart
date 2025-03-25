@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/user_service.dart';
+import 'edit_profile_page.dart';
+import 'notification_settings_page.dart';
 
 class BloggerProfilePage extends StatefulWidget {
   const BloggerProfilePage({super.key});
@@ -69,6 +71,9 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
   }
 
   Widget _buildProfileContent(Map<String, dynamic> userData) {
+    final socialMedia = userData['socialMedia'] as Map<String, dynamic>? ?? {};
+    final specialties = userData['specialties'] as List<dynamic>? ?? [];
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -101,7 +106,13 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
                   child: IconButton(
                     icon: const Icon(Icons.edit, color: Colors.white),
                     onPressed: () {
-                      // TODO: Navigate to edit profile
+                      // Navigate to edit profile
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditProfilePage(userData: userData),
+                        ),
+                      ).then((_) => setState(() {})); // Refresh after returning
                     },
                   ),
                 ),
@@ -155,6 +166,43 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
             const SizedBox(height: 24),
           ],
 
+          // Food Specialties
+          if (specialties.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: specialties.map((specialty) => 
+                Chip(
+                  label: Text(specialty),
+                  backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                ),
+              ).toList(),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Social Media Links
+          if (socialMedia.isNotEmpty && 
+              socialMedia.values.any((value) => value != null && value.toString().isNotEmpty)) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (socialMedia['facebook'] != null && socialMedia['facebook'].toString().isNotEmpty)
+                  _buildSocialIcon(Icons.facebook, Colors.blue),
+                if (socialMedia['instagram'] != null && socialMedia['instagram'].toString().isNotEmpty)
+                  _buildSocialIcon(Icons.camera_alt, Colors.purple),
+                if (socialMedia['twitter'] != null && socialMedia['twitter'].toString().isNotEmpty)
+                  _buildSocialIcon(Icons.travel_explore, Colors.lightBlue),
+                if (socialMedia['youtube'] != null && socialMedia['youtube'].toString().isNotEmpty)
+                  _buildSocialIcon(Icons.video_library, Colors.red),
+                if (socialMedia['website'] != null && socialMedia['website'].toString().isNotEmpty)
+                  _buildSocialIcon(Icons.language, Colors.teal),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+
           // Stats row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -171,14 +219,25 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
             icon: Icons.edit_note,
             title: 'Edit Profile',
             onTap: () {
-              // TODO: Implement edit profile
+              // Navigate to edit profile
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditProfilePage(userData: userData),
+                ),
+              ).then((_) => setState(() {})); // Refresh after returning
             },
           ),
           _buildProfileOption(
             icon: Icons.notifications_outlined,
             title: 'Notification Settings',
             onTap: () {
-              // TODO: Implement notification settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationSettingsPage(),
+                ),
+              ).then((_) => setState(() {})); // Refresh after returning
             },
           ),
           _buildProfileOption(
@@ -228,6 +287,17 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSocialIcon(IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: CircleAvatar(
+        radius: 20,
+        backgroundColor: color.withOpacity(0.2),
+        child: Icon(icon, color: color, size: 24),
       ),
     );
   }
