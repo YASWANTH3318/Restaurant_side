@@ -14,6 +14,7 @@ import '../pages/complete_profile_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/blog_page.dart';
 import 'user/faq_page.dart';
+import 'notifications_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -132,7 +133,12 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
-              // TODO: Implement notifications
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsPage(),
+                ),
+              );
             },
           ),
           IconButton(
@@ -862,13 +868,6 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 32),
 
           // Profile Options
-          _buildProfileOption(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            onTap: () {
-              // TODO: Implement notifications settings
-            },
-          ),
           _buildProfileOption(
             icon: Icons.location_on_outlined,
             title: 'Delivery Address',
