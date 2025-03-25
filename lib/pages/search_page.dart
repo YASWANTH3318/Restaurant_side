@@ -24,7 +24,8 @@ class _SearchPageState extends State<SearchPage> {
   final Set<String> _selectedTags = {};
   RangeValues _priceRange = const RangeValues(200, 5000); // ₹200-₹20000 price range
   double _minRating = 0;
-  String _sortBy = 'rating'; // Default sort by rating
+  String _sortBy = 'price_low'; // Default sort by price_low
+  double? _maxDistance;
 
   // Available filter options
   final List<String> _availableCuisines = [
@@ -51,11 +52,9 @@ class _SearchPageState extends State<SearchPage> {
   ];
 
   final List<String> _sortOptions = [
-    'rating',
     'distance',
     'price_low',
     'price_high',
-    'name'
   ];
 
   String _searchQuery = '';
@@ -74,22 +73,51 @@ class _SearchPageState extends State<SearchPage> {
     });
 
     try {
-      final results = await RestaurantService.searchRestaurants(query);
+      final results = await RestaurantService.searchRestaurants(
+        query,
+        maxDistance: _sortBy == 'distance' ? _maxDistance : null,
+      );
+      
       if (mounted) {
         setState(() {
           _searchResults = results;
+          
+          // Apply price sorting if needed
+          if (_sortBy == 'price_low' || _sortBy == 'price_high') {
+            _searchResults!.sort((a, b) {
+              // Calculate average price for each restaurant
+              final aMenu = a.menu.values.expand((items) => items).toList();
+              final bMenu = b.menu.values.expand((items) => items).toList();
+              
+              final aPrice = aMenu.isNotEmpty
+                  ? aMenu.map((item) => item.price).reduce((a, b) => a + b) / aMenu.length
+                  : 0.0;
+              final bPrice = bMenu.isNotEmpty
+                  ? bMenu.map((item) => item.price).reduce((a, b) => a + b) / bMenu.length
+                  : 0.0;
+              
+              return _sortBy == 'price_low'
+                  ? aPrice.compareTo(bPrice)
+                  : bPrice.compareTo(aPrice);
+            });
+          }
+          
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _searchResults = null;
+          _searchResults = []; // Empty list instead of null
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        print('Search error: $e');
+        // Only show snackbar for errors other than "No results found"
+        if (!e.toString().contains('No results found')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Search error: Please try again')),
+          );
+        }
       }
     }
   }
@@ -299,27 +327,89 @@ class _SearchPageState extends State<SearchPage> {
             ...ListTile.divideTiles(
               context: context,
               tiles: _sortOptions.map(
-                (option) => ListTile(
-                  title: Text(
-                    option.split('_').map((word) => 
-                      word[0].toUpperCase() + word.substring(1)
-                    ).join(' '),
-                  ),
-                  trailing: _sortBy == option
-                      ? const Icon(Icons.check, color: Colors.green)
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _sortBy = option;
-                    });
-                    Navigator.pop(context);
-                    _handleSearch(_searchQuery);
-                  },
-                ),
+                (option) => option == 'distance'
+                    ? ListTile(
+                        title: const Text('Distance'),
+                        trailing: _sortBy == option
+                            ? const Icon(Icons.check, color: Colors.green)
+                            : null,
+                        onTap: () {
+                          _showDistanceInputDialog();
+                        },
+                      )
+                    : ListTile(
+                        title: Text(
+                          option.split('_').map((word) => 
+                            word[0].toUpperCase() + word.substring(1)
+                          ).join(' '),
+                        ),
+                        trailing: _sortBy == option
+                            ? const Icon(Icons.check, color: Colors.green)
+                            : null,
+                        onTap: () {
+                          setState(() {
+                            _sortBy = option;
+                          });
+                          Navigator.pop(context);
+                          _handleSearch(_searchQuery);
+                        },
+                      ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDistanceInputDialog() {
+    final TextEditingController distanceController = TextEditingController();
+    if (_maxDistance != null) {
+      distanceController.text = _maxDistance!.toString();
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Maximum Distance'),
+        content: TextField(
+          controller: distanceController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Distance (in km)',
+            hintText: 'e.g., 5',
+            suffix: Text('km'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final input = distanceController.text.trim();
+              final distance = double.tryParse(input);
+              
+              if (distance != null && distance > 0) {
+                setState(() {
+                  _maxDistance = distance;
+                  _sortBy = 'distance';
+                });
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Close sort sheet
+                _handleSearch(_searchQuery);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a valid distance')),
+                );
+              }
+            },
+            child: const Text('Go'),
+          ),
+        ],
       ),
     );
   }
@@ -403,7 +493,9 @@ class _SearchPageState extends State<SearchPage> {
                         onPressed: _showSortSheet,
                         icon: const Icon(Icons.sort),
                         label: Text(
-                          'Sort by ${_sortBy.split('_').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ')}',
+                          _sortBy == 'distance' && _maxDistance != null
+                              ? 'Distance: $_maxDistance km'
+                              : 'Sort by ${_sortBy.split('_').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ')}',
                         ),
                       ),
                     ),
@@ -420,9 +512,11 @@ class _SearchPageState extends State<SearchPage> {
                 : _searchResults == null || _searchResults!.isEmpty
                     ? Center(
                         child: Text(
-                          _searchQuery.isNotEmpty
-                              ? 'No results found for "$_searchQuery"'
-                              : 'Search for restaurants or use filters to find what you\'re looking for',
+                          _sortBy == 'distance' && _maxDistance != null
+                              ? 'No restaurants found within $_maxDistance km'
+                              : _searchQuery.isNotEmpty
+                                  ? 'No results found for "$_searchQuery"'
+                                  : 'Search for restaurants or use filters to find what you\'re looking for',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey[600]),
                         ),

@@ -55,35 +55,52 @@ class RestaurantService {
   }
 
   // Search restaurants
-  static Future<List<Restaurant>> searchRestaurants(String query) async {
+  static Future<List<Restaurant>> searchRestaurants(String query, {double? maxDistance}) async {
     try {
-      if (query.isEmpty) {
-        return [];
+      final results = <Restaurant>[];
+      final snapshot = await _firestore.collection(_collection).get();
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final name = data['name'] ?? '';
+        final cuisine = data['cuisine'] ?? '';
+        final description = data['description'] ?? '';
+        final tags = List<String>.from(data['tags'] ?? []);
+
+        // Check if restaurant matches search query
+        if (query.isEmpty ||
+            name.toLowerCase().contains(query.toLowerCase()) ||
+            cuisine.toLowerCase().contains(query.toLowerCase()) ||
+            description.toLowerCase().contains(query.toLowerCase()) ||
+            tags.any((tag) => tag.toLowerCase().contains(query.toLowerCase()))) {
+          
+          final restaurant = Restaurant.fromMap({...data, 'id': doc.id});
+          
+          // Filter by distance if provided
+          if (maxDistance != null) {
+            try {
+              // Extract distance value from string (e.g., "2.5 km" -> 2.5)
+              final distanceString = restaurant.distance.split(' ').first;
+              final distanceValue = double.tryParse(distanceString) ?? 0.0;
+              
+              if (distanceValue <= maxDistance) {
+                results.add(restaurant);
+              }
+            } catch (e) {
+              // If distance parsing fails, just add the restaurant
+              print('Error parsing distance for ${restaurant.name}: $e');
+              results.add(restaurant);
+            }
+          } else {
+            results.add(restaurant);
+          }
+        }
       }
 
-      // Create search terms from the query
-      final searchTerms = <String>{};
-      
-      // Add individual characters for single letter search
-      searchTerms.addAll(query.toLowerCase().split(''));
-      
-      // Add complete words
-      searchTerms.addAll(query.toLowerCase().split(' '));
-      
-      // Add the complete query
-      searchTerms.add(query.toLowerCase());
-
-      final snapshot = await _firestore
-          .collection(_collection)
-          .where('searchTags', arrayContainsAny: searchTerms.toList())
-          .get();
-
-      return snapshot.docs
-          .map((doc) => Restaurant.fromMap({...doc.data(), 'id': doc.id}))
-          .toList();
+      return results;
     } catch (e) {
       print('Error searching restaurants: $e');
-      rethrow;
+      return []; // Return empty list instead of throwing exception
     }
   }
 
