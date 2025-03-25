@@ -438,7 +438,7 @@ class _SearchPageState extends State<SearchPage> {
                 TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search for restaurants or dishes',
+                    hintText: 'Search for restaurants, cuisine, or features like "luxury"',
                     prefixIcon: _isLoading 
                         ? SizedBox(
                             width: 24,
@@ -511,14 +511,33 @@ class _SearchPageState extends State<SearchPage> {
                 ? const Center(child: CircularProgressIndicator())
                 : _searchResults == null || _searchResults!.isEmpty
                     ? Center(
-                        child: Text(
-                          _sortBy == 'distance' && _maxDistance != null
-                              ? 'No restaurants found within $_maxDistance km'
-                              : _searchQuery.isNotEmpty
-                                  ? 'No results found for "$_searchQuery"'
-                                  : 'Search for restaurants or use filters to find what you\'re looking for',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[600]),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _sortBy == 'distance' && _maxDistance != null
+                                  ? 'No restaurants found within $_maxDistance km'
+                                  : _searchQuery.isNotEmpty
+                                      ? 'No results found for "$_searchQuery"'
+                                      : 'Search for restaurants or use filters',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (_searchQuery.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 32),
+                                child: Text(
+                                  'Try searching for restaurant names, cuisines, food types, themes (like "luxury"), or special features',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                                ),
+                              ),
+                          ],
                         ),
                       )
                     : ListView.builder(

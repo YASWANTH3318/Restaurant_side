@@ -59,21 +59,41 @@ class RestaurantService {
     try {
       final results = <Restaurant>[];
       final snapshot = await _firestore.collection(_collection).get();
-
+      
+      // Normalize the search query
+      final normalizedQuery = query.toLowerCase().trim();
+      
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        final name = data['name'] ?? '';
-        final cuisine = data['cuisine'] ?? '';
-        final description = data['description'] ?? '';
-        final tags = List<String>.from(data['tags'] ?? []);
-
+        
+        // Extract all searchable fields
+        final name = (data['name'] ?? '').toString().toLowerCase();
+        final cuisine = (data['cuisine'] ?? '').toString().toLowerCase();
+        final description = (data['description'] ?? '').toString().toLowerCase();
+        final tags = List<String>.from(data['tags'] ?? []).map((tag) => tag.toLowerCase()).toList();
+        final address = (data['address'] ?? '').toString().toLowerCase();
+        
+        // Get additional data that might be useful for search
+        final theme = (data['theme'] ?? '').toString().toLowerCase();
+        final ambience = (data['ambience'] ?? '').toString().toLowerCase();
+        final foodType = (data['foodType'] ?? '').toString().toLowerCase();
+        
+        // Combine all searchable text for comprehensive matching
+        final searchableText = '$name $cuisine $description $address $theme $ambience $foodType ${tags.join(' ')}';
+        
         // Check if restaurant matches search query
-        if (query.isEmpty ||
-            name.toLowerCase().contains(query.toLowerCase()) ||
-            cuisine.toLowerCase().contains(query.toLowerCase()) ||
-            description.toLowerCase().contains(query.toLowerCase()) ||
-            tags.any((tag) => tag.toLowerCase().contains(query.toLowerCase()))) {
-          
+        final hasMatch = normalizedQuery.isEmpty || 
+            name.contains(normalizedQuery) ||
+            cuisine.contains(normalizedQuery) ||
+            description.contains(normalizedQuery) ||
+            address.contains(normalizedQuery) ||
+            theme.contains(normalizedQuery) ||
+            ambience.contains(normalizedQuery) ||
+            foodType.contains(normalizedQuery) ||
+            tags.any((tag) => tag.contains(normalizedQuery)) ||
+            searchableText.contains(normalizedQuery);
+            
+        if (hasMatch) {
           final restaurant = Restaurant.fromMap({...data, 'id': doc.id});
           
           // Filter by distance if provided
