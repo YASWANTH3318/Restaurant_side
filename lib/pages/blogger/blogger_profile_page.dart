@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/user_service.dart';
 import 'edit_profile_page.dart';
 import 'notification_settings_page.dart';
+import 'account_settings_page.dart';
+import 'help_support_page.dart';
 
 class BloggerProfilePage extends StatefulWidget {
   const BloggerProfilePage({super.key});
@@ -251,14 +253,24 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
             icon: Icons.settings_outlined,
             title: 'Account Settings',
             onTap: () {
-              // TODO: Implement account settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AccountSettingsPage(),
+                ),
+              ).then((_) => setState(() {})); // Refresh after returning
             },
           ),
           _buildProfileOption(
             icon: Icons.help_outline,
             title: 'Help & Support',
             onTap: () {
-              // TODO: Implement help & support
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HelpSupportPage(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 24),
