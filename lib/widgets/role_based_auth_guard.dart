@@ -76,13 +76,22 @@ class RoleBasedAuthGuard extends StatelessWidget {
               
               try {
                 final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-                final userRole = userData['metadata']?['role'] as String?;
+                String? userRole;
+                
+                // Check for role in different locations (for backward compatibility)
+                if (userData['metadata'] != null && userData['metadata'] is Map) {
+                  userRole = (userData['metadata'] as Map<String, dynamic>)['role'] as String?;
+                } 
+                
+                if (userRole == null && userData.containsKey('role')) {
+                  userRole = userData['role'] as String?;
+                }
                 
                 debugPrint('User role from Firestore: $userRole');
                 debugPrint('User data: $userData');
                 
                 // Route to appropriate page based on role
-                if (userRole == 'customer') {
+                if (userRole == 'customer' || userRole == 'user') {
                   debugPrint('Navigating to customer home page');
                   return const HomePage();
                 } else if (userRole == 'restaurant') {
@@ -92,9 +101,44 @@ class RoleBasedAuthGuard extends StatelessWidget {
                   debugPrint('Navigating to blogger home page');
                   return const BloggerHomePage();
                 } else {
-                  // Default to customer view if role is unknown
-                  debugPrint('Unknown role: $userRole, defaulting to customer view');
-                  return const HomePage();
+                  // No role found or unknown role
+                  debugPrint('No recognized role found: $userRole, signing out user');
+                  
+                  // Show a dialog to the user to inform them about the issue
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Role Not Found'),
+                          content: const Text(
+                            'Your account does not have a recognized role. Please sign in again and select the appropriate role.'
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                FirebaseAuth.instance.signOut();
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  });
+                  
+                  // Send them to login page after a short delay
+                  Future.delayed(const Duration(seconds: 2), () {
+                    FirebaseAuth.instance.signOut();
+                  });
+                  
+                  return const Scaffold(
+                    body: Center(
+                      child: Text('Redirecting to login page...'),
+                    ),
+                  );
                 }
               } catch (e, stackTrace) {
                 ErrorHandler.logError(e, stackTrace);

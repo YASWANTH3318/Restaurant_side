@@ -29,7 +29,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // Check if the email is already used for a different role
+      // Get Google user
       final googleUser = await UserService.getGoogleUser();
       if (googleUser == null) {
         setState(() {
@@ -39,20 +39,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       
-      final googleEmail = googleUser.email;
-      
-      // Check if email exists with a different role
-      final isEmailUsedWithDifferentRole = await _checkEmailWithRole(googleEmail, _selectedRole);
-      
-      if (isEmailUsedWithDifferentRole) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'This email is already registered with a different role. Please use a different email or sign in with the correct role.';
-        });
-        return;
-      }
-      
-      // Proceed with sign-in
+      // Proceed with sign-in directly
       final userCredential = await UserService.signInWithGoogle(role: _selectedRole);
       
       if (!mounted) return;
@@ -76,7 +63,11 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       
       setState(() {
-        _errorMessage = 'Failed to sign in with Google. Please try again.';
+        if (e.toString().contains('account-exists-with-different-credential')) {
+          _errorMessage = 'This email is already used with a different sign-in method. Try another login method.';
+        } else {
+          _errorMessage = 'Failed to sign in. Please try again.';
+        }
         _isLoading = false;
       });
     }
@@ -90,22 +81,25 @@ class _LoginPageState extends State<LoginPage> {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        return false; // Email doesn't exist yet
+        return false; // Email doesn't exist yet, allow login
       }
       
-      // Check if the existing user has a different role
+      // If user document exists but doesn't have metadata.role or it's the same as selected role, allow login
       for (var doc in querySnapshot.docs) {
         final userData = doc.data();
         final existingRole = userData['metadata']?['role'] as String?;
-        if (existingRole != null && existingRole != selectedRole) {
-          return true; // Email exists with a different role
+        
+        // If there's no role set or it matches the selected role, login is allowed
+        if (existingRole == null || existingRole == selectedRole) {
+          return false; // Role is compatible, allow login
         }
       }
       
-      return false; // Email exists but with the same role
+      // Email exists with an incompatible role
+      return true;
     } catch (e) {
       print('Error checking email role: $e');
-      return false;
+      return false; // In case of error, allow the login
     }
   }
 
@@ -118,52 +112,63 @@ class _LoginPageState extends State<LoginPage> {
 
       try {
         final email = _emailController.text.trim();
+        final password = _passwordController.text;
         
-        // Check if email exists with a different role
-        final isEmailUsedWithDifferentRole = await _checkEmailWithRole(email, _selectedRole);
-        
-        if (isEmailUsedWithDifferentRole) {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = 'This email is already registered with a different role. Please use a different email or sign in with the correct role.';
-          });
-          return;
-        }
-        
-        // Sign in with Firebase Auth
-        await UserService.signInWithEmail(
-          email: email,
-          password: _passwordController.text,
-          role: _selectedRole,
-        );
-
-        if (mounted) {
-          // Navigate based on role
-          switch (_selectedRole) {
-            case 'blogger':
-              Navigator.pushReplacementNamed(context, '/blogger-home');
-              break;
-            case 'restaurant':
-              Navigator.pushReplacementNamed(context, '/restaurant/home');
-              break;
-            case 'customer':
-            default:
-              Navigator.pushReplacementNamed(context, '/home');
-              break;
+        // First try standard sign in without role checks
+        try {
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+          
+          // If successful, update the role if needed
+          await UserService.signInWithEmail(
+            email: email,
+            password: password,
+            role: _selectedRole,
+          );
+          
+          if (mounted) {
+            // Navigate based on role
+            switch (_selectedRole) {
+              case 'blogger':
+                Navigator.pushReplacementNamed(context, '/blogger-home');
+                break;
+              case 'restaurant':
+                Navigator.pushReplacementNamed(context, '/restaurant/home');
+                break;
+              case 'customer':
+              default:
+                Navigator.pushReplacementNamed(context, '/home');
+                break;
+            }
+          }
+        } on FirebaseAuthException catch (authError) {
+          if (authError.code == 'user-not-found' || authError.code == 'wrong-password') {
+            // Standard auth errors, show these to the user
+            if (mounted) {
+              setState(() {
+                if (authError.code == 'user-not-found') {
+                  _errorMessage = 'No user found with this email. Please sign up first.';
+                } else if (authError.code == 'wrong-password') {
+                  _errorMessage = 'Incorrect password. Please try again.';
+                } else {
+                  _errorMessage = authError.message ?? 'An error occurred during login';
+                }
+                _isLoading = false;
+              });
+            }
+          } else {
+            // Other auth errors
+            throw authError;
           }
         }
-      } on FirebaseAuthException catch (e) {
-        print('Firebase Auth Error: ${e.message}');
-        if (mounted) {
-          setState(() {
-            _errorMessage = e.message ?? 'An error occurred during login';
-          });
-        }
       } catch (e) {
-        print('Unexpected Error: $e');
+        print('Login Error: $e');
         if (mounted) {
           setState(() {
-            _errorMessage = 'An unexpected error occurred';
+            _errorMessage = 'Login failed. Please check your credentials and try again.';
+            _isLoading = false;
           });
         }
       } finally {

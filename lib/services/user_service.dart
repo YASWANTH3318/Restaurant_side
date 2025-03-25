@@ -129,24 +129,39 @@ class UserService {
     required String role,
   }) async {
     try {
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      // Get current user - might already be signed in from direct Firebase auth
+      User? currentUser = _auth.currentUser;
+      UserCredential? userCredential;
+      
+      if (currentUser == null) {
+        // If no current user, try to sign in
+        userCredential = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        currentUser = userCredential.user;
+      }
+      
+      if (currentUser == null) {
+        throw FirebaseAuthException(
+          code: 'user-not-found',
+          message: 'No user found with this email',
+        );
+      }
 
       // Check if user document exists
-      final userDoc = await getUserData(userCredential.user!.uid);
+      final userDoc = await _usersCollection.doc(currentUser.uid).get();
       
       if (!userDoc.exists) {
         // Create new user document if it doesn't exist
         final newUser = UserModel(
-          id: userCredential.user!.uid,
-          email: userCredential.user!.email!,
-          name: userCredential.user!.displayName ?? email.split('@')[0],
+          id: currentUser.uid,
+          email: currentUser.email!,
+          name: currentUser.displayName ?? email.split('@')[0],
           username: email.split('@')[0],
           createdAt: DateTime.now(),
           lastLoginAt: DateTime.now(),
-          isEmailVerified: userCredential.user!.emailVerified,
+          isEmailVerified: currentUser.emailVerified,
           metadata: {
             'createdBy': 'email',
             'accountType': 'email',
@@ -157,25 +172,22 @@ class UserService {
         
         await createUser(newUser);
       } else {
-        // Get existing user data
-        final userData = userDoc.data() as Map<String, dynamic>;
-        final metadata = Map<String, dynamic>.from(userData['metadata']);
-        
-        // Update last login time and ensure role is set
-        if (!metadata.containsKey('role')) {
-          metadata['role'] = role;
-        }
-        
-        await updateUser(UserModel(
-          id: userCredential.user!.uid,
-          email: userCredential.user!.email!,
-          name: userCredential.user!.displayName ?? email.split('@')[0],
-          username: email.split('@')[0],
-          createdAt: userData['createdAt'].toDate(),
-          lastLoginAt: DateTime.now(),
-          isEmailVerified: userCredential.user!.emailVerified,
-          metadata: metadata,
-        ));
+        // Update last login time
+        await _usersCollection.doc(currentUser.uid).update({
+          'lastLoginAt': FieldValue.serverTimestamp(),
+          'metadata.lastLoginAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // If we don't have a UserCredential, but we have a current user,
+      // We can't create one directly, but we can return the existing one
+      // or just sign in again to get a fresh credential
+      if (userCredential == null) {
+        // Sign in again to get a credential
+        userCredential = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
       }
 
       return userCredential;
@@ -209,63 +221,55 @@ class UserService {
 
         // Sign in to Firebase with the Google credential
         final userCredential = await _auth.signInWithCredential(credential);
-
-        // Check if user document exists
-        final userDoc = await getUserData(userCredential.user!.uid);
         
-        if (!userDoc.exists) {
-          // Create new user document if it doesn't exist
-          final newUser = UserModel(
-            id: userCredential.user!.uid,
-            email: userCredential.user!.email!,
-            name: userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
-            username: userCredential.user!.email!.split('@')[0],
-            phoneNumber: userCredential.user!.phoneNumber,
-            profileImageUrl: userCredential.user!.photoURL,
-            createdAt: DateTime.now(),
-            lastLoginAt: DateTime.now(),
-            isEmailVerified: userCredential.user!.emailVerified,
-            metadata: {
-              'lastPasswordChange': DateTime.now().toIso8601String(),
-              'createdBy': 'google',
-              'accountType': 'google',
-              'role': role,
-              'createdAt': DateTime.now().toIso8601String(),
-            },
-          );
+        try {
+          // Check if user document exists - use a try-catch to handle potential errors
+          final userDoc = await _usersCollection.doc(userCredential.user!.uid).get();
           
-          await createUser(newUser);
-        } else {
-          // Get existing user data
-          final userData = userDoc.data() as Map<String, dynamic>;
-          final metadata = Map<String, dynamic>.from(userData['metadata']);
-          
-          // Update last login time and ensure role is set
-          if (!metadata.containsKey('role')) {
-            metadata['role'] = role;
+          if (!userDoc.exists) {
+            // Create new user document if it doesn't exist
+            final newUser = UserModel(
+              id: userCredential.user!.uid,
+              email: userCredential.user!.email!,
+              name: userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
+              username: userCredential.user!.email!.split('@')[0],
+              phoneNumber: userCredential.user!.phoneNumber,
+              profileImageUrl: userCredential.user!.photoURL,
+              createdAt: DateTime.now(),
+              lastLoginAt: DateTime.now(),
+              isEmailVerified: userCredential.user!.emailVerified,
+              metadata: {
+                'lastPasswordChange': DateTime.now().toIso8601String(),
+                'createdBy': 'google',
+                'accountType': 'google.com',
+                'role': role,
+                'createdAt': DateTime.now().toIso8601String(),
+              },
+            );
+            
+            await createUser(newUser);
+          } else {
+            // Just update login time and profile data without changing role
+            await _usersCollection.doc(userCredential.user!.uid).update({
+              'lastLoginAt': FieldValue.serverTimestamp(),
+              'isEmailVerified': userCredential.user!.emailVerified,
+              'profileImageUrl': userCredential.user!.photoURL,
+              'name': userCredential.user!.displayName,
+              'metadata.lastLoginAt': FieldValue.serverTimestamp(),
+            });
           }
-          
-          await updateUser(UserModel(
-            id: userCredential.user!.uid,
-            email: userCredential.user!.email!,
-            name: userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
-            username: userCredential.user!.email!.split('@')[0],
-            phoneNumber: userCredential.user!.phoneNumber,
-            profileImageUrl: userCredential.user!.photoURL,
-            createdAt: userData['createdAt'].toDate(),
-            lastLoginAt: DateTime.now(),
-            isEmailVerified: userCredential.user!.emailVerified,
-            metadata: metadata,
-          ));
+        } catch (firestoreError) {
+          print('Error handling Firestore operations during Google sign-in: $firestoreError');
+          // Continue with authentication even if Firestore operations fail
         }
 
         return userCredential;
       } catch (e) {
-        print('Firebase Auth Error: $e');
+        print('Error signing in with Google: $e');
         rethrow;
       }
     } catch (e) {
-      print('Google Sign-In Error: $e');
+      print('Error in Google sign-in process: $e');
       rethrow;
     }
   }
