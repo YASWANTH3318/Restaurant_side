@@ -39,6 +39,7 @@ dependencies:
   firebase_storage: ^11.5.6
   firebase_app_check: ^0.2.1+8
   google_sign_in: ^6.1.6
+  table_calendar: ^3.0.9
   
   # Other useful dependencies
   provider: ^6.1.1

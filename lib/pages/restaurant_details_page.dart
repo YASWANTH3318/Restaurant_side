@@ -6,6 +6,8 @@ import '../models/review.dart';
 import '../services/reservation_service.dart';
 import '../services/review_service.dart';
 import 'package:intl/intl.dart';
+import '../pages/table_booking_page.dart';
+import '../pages/pre_order_page.dart';
 
 class RestaurantDetailsPage extends StatefulWidget {
   final Restaurant restaurant;
@@ -26,6 +28,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> with Sing
   int _guestCount = 2;
   Review? _userReview;
   bool _isLoadingReviews = false;
+  String? _specialRequests;
 
   final List<String> _availableTimes = [
     '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
@@ -693,103 +696,300 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> with Sing
                   child: TabBarView(
                     controller: _tabController,
                     children: [
+                      // Reserve Tab
                       SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Make a Reservation',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            // Date Selection
-                            ListTile(
-                              leading: const Icon(Icons.calendar_today),
-                              title: Text(
-                                _selectedDate == null
-                                    ? 'Select Date'
-                                    : _selectedDate.toString().split(' ')[0],
-                              ),
-                              tileColor: Colors.grey[100],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              onTap: () => _selectDate(context),
-                            ),
-                            const SizedBox(height: 16),
-                            // Time Selection
-                            if (_selectedDate != null) ...[
-                              const Text(
-                                'Available Times',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: _availableTimes.map((time) {
-                                  return ChoiceChip(
-                                    label: Text(time),
-                                    selected: _selectedTime == time,
-                                    onSelected: (selected) {
-                                      setState(() {
-                                        _selectedTime = selected ? time : null;
-                                      });
-                                    },
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-                            const SizedBox(height: 24),
-                            // Guest Count
-                            Row(
-                              children: [
-                                const Text(
-                                  'Number of Guests',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                            // Hero Image Section
+                            Container(
+                              height: 200,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: NetworkImage(widget.restaurant.image),
+                                  fit: BoxFit.cover,
+                                  colorFilter: ColorFilter.mode(
+                                    Colors.black.withOpacity(0.4),
+                                    BlendMode.darken,
                                   ),
                                 ),
-                                const Spacer(),
-                                IconButton(
-                                  icon: const Icon(Icons.remove),
-                                  onPressed: _guestCount > 1
-                                      ? () => setState(() => _guestCount--)
-                                      : null,
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Reserve Your Table',
+                                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Experience the finest dining at ${widget.restaurant.name}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  _guestCount.toString(),
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.add),
-                                  onPressed: _guestCount < 10
-                                      ? () => setState(() => _guestCount++)
-                                      : null,
-                                ),
-                              ],
+                              ),
                             ),
-                            const SizedBox(height: 32),
-                            // Reserve Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: (_selectedDate != null &&
-                                        _selectedTime != null)
-                                    ? _showReservationDialog
-                                    : null,
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                ),
-                                child: const Text('Reserve Table'),
+                            
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Restaurant Info Card
+                                  Card(
+                                    elevation: 2,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.restaurant, color: Colors.orange),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Restaurant Information',
+                                                style: Theme.of(context).textTheme.titleLarge,
+                                              ),
+                                            ],
+                                          ),
+                                          const Divider(),
+                                          const SizedBox(height: 8),
+                                          _buildInfoRow(Icons.location_on, widget.restaurant.address),
+                                          const SizedBox(height: 8),
+                                          _buildInfoRow(Icons.access_time, 'Open Hours: 11:00 AM - 11:00 PM'),
+                                          const SizedBox(height: 8),
+                                          _buildInfoRow(Icons.phone, widget.restaurant.phoneNumber),
+                                          const SizedBox(height: 8),
+                                          _buildInfoRow(Icons.category, widget.restaurant.cuisine),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  // Booking Section
+                                  Card(
+                                    elevation: 2,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.calendar_today, color: Colors.orange),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Book Your Table',
+                                                style: Theme.of(context).textTheme.titleLarge,
+                                              ),
+                                            ],
+                                          ),
+                                          const Divider(),
+                                          const SizedBox(height: 16),
+
+                                          // Date Selection
+                                          Text(
+                                            'Select Date',
+                                            style: Theme.of(context).textTheme.titleMedium,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          InkWell(
+                                            onTap: () => _selectDate(context),
+                                            child: Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                border: Border.all(color: Colors.grey[300]!),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.calendar_today),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    _selectedDate == null
+                                                        ? 'Choose a date'
+                                                        : DateFormat('MMM d, yyyy').format(_selectedDate!),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 24),
+
+                                          // Time Selection
+                                          if (_selectedDate != null) ...[
+                                            Text(
+                                              'Select Time',
+                                              style: Theme.of(context).textTheme.titleMedium,
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: _availableTimes.map((time) {
+                                                final isSelected = _selectedTime == time;
+                                                return ChoiceChip(
+                                                  label: Text(time),
+                                                  selected: isSelected,
+                                                  onSelected: (selected) {
+                                                    setState(() {
+                                                      _selectedTime = selected ? time : null;
+                                                    });
+                                                  },
+                                                );
+                                              }).toList(),
+                                            ),
+                                            const SizedBox(height: 24),
+                                          ],
+
+                                          // Number of Guests
+                                          Text(
+                                            'Number of Guests',
+                                            style: Theme.of(context).textTheme.titleMedium,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.remove_circle_outline),
+                                                onPressed: _guestCount > 1
+                                                    ? () => setState(() => _guestCount--)
+                                                    : null,
+                                              ),
+                                              Text(
+                                                _guestCount.toString(),
+                                                style: const TextStyle(fontSize: 20),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.add_circle_outline),
+                                                onPressed: _guestCount < 10
+                                                    ? () => setState(() => _guestCount++)
+                                                    : null,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 24),
+
+                                          // Special Requests
+                                          Text(
+                                            'Special Requests (Optional)',
+                                            style: Theme.of(context).textTheme.titleMedium,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          TextField(
+                                            decoration: const InputDecoration(
+                                              hintText: 'e.g., Birthday celebration, Allergies, etc.',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                            maxLines: 2,
+                                            onChanged: (value) => setState(() {
+                                              _specialRequests = value;
+                                            }),
+                                          ),
+                                          const SizedBox(height: 24),
+
+                                          // Pre-order Option
+                                          if (_selectedDate != null && _selectedTime != null)
+                                            Card(
+                                              color: Colors.grey[100],
+                                              child: ListTile(
+                                                leading: const Icon(Icons.restaurant_menu),
+                                                title: const Text('Pre-order Food'),
+                                                subtitle: const Text('Order your food in advance to save time'),
+                                                trailing: const Icon(Icons.arrow_forward_ios),
+                                                onTap: () {
+                                                  final user = FirebaseAuth.instance.currentUser;
+                                                  if (user == null) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text('Please sign in to pre-order'),
+                                                        backgroundColor: Colors.red,
+                                                      ),
+                                                    );
+                                                    return;
+                                                  }
+                                                  
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) => PreOrderPage(
+                                                        restaurant: widget.restaurant,
+                                                        reservationId: DateTime.now().millisecondsSinceEpoch.toString(),
+                                                        userId: user.uid,
+                                                        reservationDate: _selectedDate!,
+                                                        numberOfGuests: _guestCount,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          const SizedBox(height: 24),
+
+                                          // Book Table Button
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton(
+                                              onPressed: (_selectedDate != null && _selectedTime != null)
+                                                  ? _showReservationDialog
+                                                  : null,
+                                              style: ElevatedButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                                backgroundColor: Theme.of(context).primaryColor,
+                                                foregroundColor: Colors.white,
+                                                disabledBackgroundColor: Colors.grey[300],
+                                                elevation: 2,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(Icons.check_circle_outline),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    (_selectedDate != null && _selectedTime != null)
+                                                        ? 'Book Table'
+                                                        : 'Select Date and Time',
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          if (_selectedDate == null || _selectedTime == null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 8),
+                                              child: Text(
+                                                'Please select both date and time to proceed',
+                                                style: TextStyle(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 12,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          const SizedBox(height: 16),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -804,6 +1004,34 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> with Sing
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 16,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeatureChip(String label) {
+    return Chip(
+      label: Text(label),
+      backgroundColor: Colors.grey[200],
+      labelStyle: TextStyle(
+        color: Colors.grey[800],
       ),
     );
   }
