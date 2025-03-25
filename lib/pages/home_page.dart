@@ -882,13 +882,6 @@ class _HomePageState extends State<HomePage> {
             },
           ),
           _buildProfileOption(
-            icon: Icons.payment_outlined,
-            title: 'Payment Methods',
-            onTap: () {
-              // TODO: Implement payment methods
-            },
-          ),
-          _buildProfileOption(
             icon: Icons.settings_outlined,
             title: 'Settings',
             onTap: () {
