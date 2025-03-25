@@ -129,40 +129,6 @@ class _HomePageState extends State<HomePage> {
         automaticallyImplyLeading: false,
         title: const Text('Greedy Bites'),
         actions: [
-          // Development only button
-          IconButton(
-            icon: const Icon(Icons.add_business),
-            tooltip: 'Add Sample Restaurants (Dev Only)',
-            onPressed: () async {
-              try {
-                final success = await RestaurantService.addSampleRestaurants();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        success 
-                          ? 'Sample restaurants added successfully!'
-                          : 'Restaurants already exist or operation failed.',
-                      ),
-                      backgroundColor: success ? Colors.green : Colors.orange,
-                    ),
-                  );
-                  if (success) {
-                    _loadRestaurants(); // Reload only if new restaurants were added
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {

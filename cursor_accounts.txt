@@ -1,0 +1,7 @@
+
+==================================================
+Email: frank.kalkowski@t-online.de
+Password: @J!Vs9Qx2oLk
+Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhdXRoMHx1c2VyXzAxSlE0TkNZSldXV0FCOEEzOFBWQTMwQTlWIiwidGltZSI6IjE3NDI4Mzk2ODEiLCJyYW5kb21uZXNzIjoiZjljYzRmYjctMTZjYS00MjAyIiwiZXhwIjo0MzM0ODM5NjgxLCJpc3MiOiJodHRwczovL2F1dGhlbnRpY2F0aW9uLmN1cnNvci5zaCIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwgb2ZmbGluZV9hY2Nlc3MiLCJhdWQiOiJodHRwczovL2N1cnNvci5jb20ifQ.FbWW-Wg14K5mvnBql9TnItZtzs8lwqeyrKJS7obyOj8
+Usage Limit: 150
+==================================================
