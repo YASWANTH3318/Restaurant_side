@@ -996,7 +996,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> with Sing
                         ),
                       ),
                       const Center(child: Text('Menu Coming Soon')),
-                      _buildReviewsTab(),
+                      _buildMenuTab(),
                     ],
                   ),
                 ),
@@ -1022,6 +1022,128 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> with Sing
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildMenuTab() {
+    if (widget.restaurant.menu.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.restaurant_menu, size: 50, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No menu available for this restaurant', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        for (String category in widget.restaurant.menu.keys)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                color: Colors.orange.withOpacity(0.1),
+                child: Text(
+                  category,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...widget.restaurant.menu[category]!.map((item) => Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (item.image != null && item.image!.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            item.image!,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.restaurant, color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '₹${item.price.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (item.description.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                item.description,
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                if (item.isVegetarian)
+                                  _buildFeatureChip('Vegetarian'),
+                                if (item.isVegan)
+                                  _buildFeatureChip('Vegan'),
+                                if (item.isSpicy)
+                                  _buildFeatureChip('Spicy'),
+                                if (item.allergens.isNotEmpty)
+                                  ...item.allergens.map((allergen) => _buildFeatureChip('Contains $allergen')),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )).toList(),
+              const SizedBox(height: 24),
+            ],
+          ),
       ],
     );
   }

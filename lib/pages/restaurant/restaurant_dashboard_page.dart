@@ -6,6 +6,7 @@ import 'package:greedy_bites/pages/restaurant/restaurant_orders_page.dart';
 import 'package:greedy_bites/pages/restaurant/restaurant_profile_page.dart';
 import 'package:greedy_bites/pages/restaurant/restaurant_analytics_page.dart';
 import 'package:greedy_bites/pages/restaurant/restaurant_activity_page.dart';
+import 'package:greedy_bites/pages/restaurant/restaurant_tables_page.dart';
 import '../../utils/date_format_util.dart';
 
 class RestaurantDashboardPage extends StatefulWidget {
@@ -204,6 +205,16 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
                     () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const RestaurantAnalyticsPage()),
+                    ),
+                  ),
+                  _buildManagementCard(
+                    'Tables',
+                    'Manage tables',
+                    Icons.table_restaurant,
+                    Colors.teal,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RestaurantTablesPage()),
                     ),
                   ),
                 ],

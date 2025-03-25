@@ -16,6 +16,7 @@ import '../pages/blog_page.dart';
 import 'user/faq_page.dart';
 import 'notifications_page.dart';
 import 'user/address_list_page.dart';
+import 'user/help_support_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -938,7 +939,12 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.help_outline,
             title: 'Help & Support',
             onTap: () {
-              // TODO: Implement help & support
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HelpSupportPage(),
+                ),
+              );
             },
           ),
           _buildProfileOption(

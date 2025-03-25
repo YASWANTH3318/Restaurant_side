@@ -58,7 +58,7 @@ class _SignUpPageState extends State<SignUpPage> {
         }
 
         // Create user with Firebase Auth and Firestore
-        await UserService.signUpWithEmail(
+        final userCredential = await UserService.signUpWithEmail(
           email: email,
           password: _passwordController.text.trim(),
           name: _nameController.text.trim(),
@@ -68,7 +68,44 @@ class _SignUpPageState extends State<SignUpPage> {
         );
 
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
+          if (_selectedRole == 'restaurant') {
+            // For restaurants, navigate to restaurant details page for additional info
+            Navigator.pushReplacementNamed(context, '/restaurant/home');
+            
+            // Show a dialog asking to complete the restaurant profile
+            Future.delayed(const Duration(milliseconds: 500), () {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('Complete Your Restaurant Profile'),
+                    content: const Text(
+                      'Please complete your restaurant profile to make it visible to customers. Would you like to do this now?'
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          Navigator.pushNamed(context, '/restaurant/details');
+                        },
+                        child: const Text('Yes, Complete Now'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Later'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            });
+          } else {
+            // For other users, navigate to home page
+            Navigator.pushReplacementNamed(context, '/home');
+          }
         }
       } on FirebaseAuthException catch (e) {
         setState(() {

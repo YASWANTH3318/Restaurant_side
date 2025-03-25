@@ -9,6 +9,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 import 'pages/restaurant/restaurant_home_page.dart';
+import 'pages/restaurant/restaurant_details_page.dart';
+import 'pages/restaurant/restaurant_tables_page.dart';
 import 'pages/blogger/blogger_home_page.dart';
 import 'dart:async';
 
@@ -78,6 +80,8 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => const RoleBasedAuthGuard(),
         '/restaurant/home': (context) => const RestaurantHomePage(),
+        '/restaurant/details': (context) => const RestaurantDetailsPage(),
+        '/restaurant/tables': (context) => const RestaurantTablesPage(),
         '/blogger-home': (context) => const BloggerHomePage(),
       },
     );

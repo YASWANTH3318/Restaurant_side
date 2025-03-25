@@ -57,66 +57,67 @@ class RestaurantService {
   // Search restaurants
   static Future<List<Restaurant>> searchRestaurants(String query, {double? maxDistance}) async {
     try {
+      print('Searching for restaurants with query: $query');
       final results = <Restaurant>[];
-      final snapshot = await _firestore.collection(_collection).get();
       
       // Normalize the search query
       final normalizedQuery = query.toLowerCase().trim();
       
+      if (normalizedQuery.isEmpty) {
+        // If query is empty, return popular restaurants instead
+        return getPopularRestaurants();
+      }
+
+      // Get all restaurants from collection
+      final snapshot = await _firestore.collection(_collection).get();
+      print('Found ${snapshot.docs.length} restaurants in database');
+      
       for (final doc in snapshot.docs) {
+        if (!doc.exists) continue;
+        
         final data = doc.data();
+        if (data == null) continue;
         
-        // Extract all searchable fields
-        final name = (data['name'] ?? '').toString().toLowerCase();
-        final cuisine = (data['cuisine'] ?? '').toString().toLowerCase();
-        final description = (data['description'] ?? '').toString().toLowerCase();
-        final tags = List<String>.from(data['tags'] ?? []).map((tag) => tag.toLowerCase()).toList();
-        final address = (data['address'] ?? '').toString().toLowerCase();
+        // Extract searchable fields
+        final name = (data['name'] as String?)?.toLowerCase() ?? '';
+        final cuisine = (data['cuisine'] as String?)?.toLowerCase() ?? '';
+        final description = (data['description'] as String?)?.toLowerCase() ?? '';
+        final address = (data['address'] as String?)?.toLowerCase() ?? '';
         
-        // Get additional data that might be useful for search
-        final theme = (data['theme'] ?? '').toString().toLowerCase();
-        final ambience = (data['ambience'] ?? '').toString().toLowerCase();
-        final foodType = (data['foodType'] ?? '').toString().toLowerCase();
+        // Get search tags if they exist
+        List<String> searchTags = [];
+        if (data['searchTags'] != null) {
+          searchTags = List<String>.from(data['searchTags']);
+        }
         
-        // Combine all searchable text for comprehensive matching
-        final searchableText = '$name $cuisine $description $address $theme $ambience $foodType ${tags.join(' ')}';
+        // Check if restaurant matches search query directly by name (highest priority)
+        bool hasExactNameMatch = name.contains(normalizedQuery);
         
-        // Check if restaurant matches search query
-        final hasMatch = normalizedQuery.isEmpty || 
-            name.contains(normalizedQuery) ||
+        // Check if restaurant matches by any field
+        bool hasMatch = hasExactNameMatch || 
             cuisine.contains(normalizedQuery) ||
             description.contains(normalizedQuery) ||
             address.contains(normalizedQuery) ||
-            theme.contains(normalizedQuery) ||
-            ambience.contains(normalizedQuery) ||
-            foodType.contains(normalizedQuery) ||
-            tags.any((tag) => tag.contains(normalizedQuery)) ||
-            searchableText.contains(normalizedQuery);
+            searchTags.any((tag) => tag.contains(normalizedQuery));
             
         if (hasMatch) {
-          final restaurant = Restaurant.fromMap({...data, 'id': doc.id});
-          
-          // Filter by distance if provided
-          if (maxDistance != null) {
-            try {
-              // Extract distance value from string (e.g., "2.5 km" -> 2.5)
-              final distanceString = restaurant.distance.split(' ').first;
-              final distanceValue = double.tryParse(distanceString) ?? 0.0;
-              
-              if (distanceValue <= maxDistance) {
-                results.add(restaurant);
-              }
-            } catch (e) {
-              // If distance parsing fails, just add the restaurant
-              print('Error parsing distance for ${restaurant.name}: $e');
+          print('Found matching restaurant: ${data['name']}');
+          try {
+            final restaurant = Restaurant.fromMap({...data, 'id': doc.id});
+            
+            // If it's an exact name match, prioritize it
+            if (hasExactNameMatch) {
+              results.insert(0, restaurant);
+            } else {
               results.add(restaurant);
             }
-          } else {
-            results.add(restaurant);
+          } catch (e) {
+            print('Error parsing restaurant data: $e');
           }
         }
       }
 
+      print('Search returned ${results.length} results');
       return results;
     } catch (e) {
       print('Error searching restaurants: $e');
@@ -195,7 +196,7 @@ class RestaurantService {
   static Future<void> syncRestaurantData(String userId, Map<String, dynamic> restaurantData) async {
     try {
       // Convert user data to restaurant format
-      final restaurantDoc = {
+      final Map<String, dynamic> restaurantDoc = {
         'id': userId,
         'name': restaurantData['name'],
         'image': restaurantData['image'] ?? '',
@@ -223,9 +224,12 @@ class RestaurantService {
         'isFeatured': false,
         'searchTags': [
           restaurantData['name'].toLowerCase(),
-          ...?restaurantData['cuisineTypes']?.map((type) => type.toLowerCase()),
-          restaurantData['city'].toLowerCase(),
-        ],
+          ...List<String>.from(restaurantData['cuisineTypes'] ?? []).map((type) => type.toLowerCase()),
+          restaurantData['city']?.toLowerCase() ?? '',
+          restaurantData['state']?.toLowerCase() ?? '',
+          restaurantData['landmark']?.toLowerCase() ?? '',
+          'restaurant', // Add a generic tag to find all restaurants
+        ].where((tag) => tag.isNotEmpty).toList(),
         'location': {
           'city': restaurantData['city'],
           'state': restaurantData['state'],
@@ -236,6 +240,8 @@ class RestaurantService {
 
       // Update or create restaurant document in restaurants collection
       await _firestore.collection('restaurants').doc(userId).set(restaurantDoc, SetOptions(merge: true));
+      
+      print('Restaurant data synced successfully for: ${restaurantData['name']}');
     } catch (e) {
       print('Error syncing restaurant data: $e');
       throw e;
