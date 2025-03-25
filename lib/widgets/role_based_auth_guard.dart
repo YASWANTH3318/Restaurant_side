@@ -55,8 +55,7 @@ class RoleBasedAuthGuard extends StatelessWidget {
             }
 
             final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-            final metadata = userData['metadata'] as Map<String, dynamic>?;
-            final role = metadata?['role'] as String? ?? 'user';
+            final role = userData['role'] as String? ?? 'user';
 
             // Route based on user role
             switch (role) {

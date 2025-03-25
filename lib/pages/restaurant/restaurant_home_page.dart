@@ -25,51 +25,6 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
     const RestaurantAnalyticsPage(),
     const RestaurantProfilePage(),
   ];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkRestaurantDetails();
-  }
-
-  Future<void> _checkRestaurantDetails() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final userData = await UserService.getUserData(user.uid);
-        
-        if (!userData.exists || _isRestaurantDetailsMissing(userData.data() as Map<String, dynamic>)) {
-          // If restaurant details are missing, navigate to the details page
-          if (mounted) {
-            _navigateToRestaurantDetails();
-          }
-        }
-      }
-    } catch (e) {
-      print('Error checking restaurant details: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  bool _isRestaurantDetailsMissing(Map<String, dynamic> userData) {
-    // Check if essential restaurant details are missing
-    return userData['name'] == null || 
-           userData['name'].toString().isEmpty ||
-           userData['phoneNumber'] == null || 
-           userData['phoneNumber'].toString().isEmpty ||
-           userData['address'] == null || 
-           userData['address'].toString().isEmpty;
-  }
 
   Future<void> _handleSignOut(BuildContext context) async {
     try {
@@ -85,28 +40,24 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
   void _navigateToRestaurantDetails() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const RestaurantDetailsPage()),
+      MaterialPageRoute(
+        builder: (context) => const RestaurantDetailsPage(),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Restaurant Dashboard'),
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.storefront),
+          tooltip: 'Register Restaurant',
+          onPressed: _navigateToRestaurantDetails,
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.storefront),
-            tooltip: 'Restaurant Details',
-            onPressed: _navigateToRestaurantDetails,
-          ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
@@ -133,7 +84,7 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_menu),
+            icon: Icon(Icons.restaurant_menu_outlined),
             activeIcon: Icon(Icons.restaurant_menu),
             label: 'Menu',
           ),
