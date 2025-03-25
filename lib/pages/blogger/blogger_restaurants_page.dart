@@ -4,6 +4,7 @@ import '../../services/restaurant_service.dart';
 import '../../models/restaurant.dart';
 import '../restaurant_details_page.dart';
 import '../table_booking_page.dart';
+import '../../utils/date_format_util.dart';
 
 // Fallback Restaurant model in case the import doesn't match
 extension RestaurantCompatibility on Restaurant {

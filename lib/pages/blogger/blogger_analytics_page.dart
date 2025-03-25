@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/date_format_util.dart';
 
 class BloggerAnalyticsPage extends StatefulWidget {
   const BloggerAnalyticsPage({super.key});
@@ -181,15 +182,15 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        _buildLocationRow('New York', 37),
+                        _buildLocationRow('Mumbai, Maharashtra', 37),
                         const SizedBox(height: 8),
-                        _buildLocationRow('Los Angeles', 25),
+                        _buildLocationRow('Delhi NCR', 25),
                         const SizedBox(height: 8),
-                        _buildLocationRow('Chicago', 18),
+                        _buildLocationRow('Bangalore, Karnataka', 18),
                         const SizedBox(height: 8),
-                        _buildLocationRow('Miami', 12),
+                        _buildLocationRow('Pune, Maharashtra', 12),
                         const SizedBox(height: 8),
-                        _buildLocationRow('Other', 8),
+                        _buildLocationRow('Other Indian Cities', 8),
                       ],
                     ),
                   ),
@@ -200,6 +201,16 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
   }
 
   Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+    // Format numbers using Indian format if they are numeric
+    String displayValue = value;
+    try {
+      final numValue = int.parse(value);
+      displayValue = DateFormatUtil.formatNumberIndian(numValue);
+    } catch (e) {
+      // If not a number, use original value
+      displayValue = value;
+    }
+    
     return Expanded(
       child: Card(
         elevation: 2,
@@ -211,7 +222,7 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
               Icon(icon, color: color, size: 24),
               const SizedBox(height: 8),
               Text(
-                value,
+                displayValue,
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -233,6 +244,10 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
   }
 
   Widget _buildTopPostCard(String title, String preview, int views, int likes, String image) {
+    // Format numbers using Indian number format
+    final formattedViews = DateFormatUtil.formatNumberIndian(views);
+    final formattedLikes = DateFormatUtil.formatNumberIndian(likes);
+    
     return Card(
       elevation: 2,
       child: Padding(
@@ -277,7 +292,7 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
                       Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
                       const SizedBox(width: 4),
                       Text(
-                        '$views',
+                        formattedViews,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -287,7 +302,7 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
                       Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
                       const SizedBox(width: 4),
                       Text(
-                        '$likes',
+                        formattedLikes,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -305,6 +320,8 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
   }
 
   Widget _buildLocationRow(String location, int percentage) {
+    final formattedPercentage = DateFormatUtil.formatNumberIndian(percentage);
+    
     return Row(
       children: [
         Expanded(
@@ -325,7 +342,7 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                '$percentage%',
+                '$formattedPercentage%',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[600],

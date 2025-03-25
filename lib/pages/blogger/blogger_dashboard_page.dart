@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/user_service.dart';
+import '../../utils/date_format_util.dart';
 import 'create_post_page.dart';
 import 'create_reel_page.dart';
 
@@ -150,6 +151,17 @@ class _BloggerDashboardPageState extends State<BloggerDashboardPage> {
   }
   
   Widget _buildStatCard(String title, String value, IconData icon) {
+    // Format numbers using Indian format if they are numeric
+    String displayValue = value;
+    try {
+      // Check if the value is a number
+      final numValue = int.parse(value);
+      displayValue = DateFormatUtil.formatNumberIndian(numValue);
+    } catch (e) {
+      // If not a number, use original value
+      displayValue = value;
+    }
+    
     return Expanded(
       child: Card(
         elevation: 2,
@@ -161,7 +173,7 @@ class _BloggerDashboardPageState extends State<BloggerDashboardPage> {
               Icon(icon, color: Theme.of(context).primaryColor),
               const SizedBox(height: 8),
               Text(
-                value,
+                displayValue,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

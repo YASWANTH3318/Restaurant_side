@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/user_service.dart';
+import '../../services/notification_service.dart';
 import 'blogger_dashboard_page.dart';
 import 'blogger_profile_page.dart';
 import 'blogger_posts_page.dart';
 import 'blogger_analytics_page.dart';
 import 'blogger_restaurants_page.dart';
+import 'blogger_notifications_page.dart';
 import 'create_post_page.dart';
 import 'create_reel_page.dart';
 
@@ -65,10 +67,57 @@ class _BloggerHomePageState extends State<BloggerHomePage> {
         title: Text(title),
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Implement notifications
+          FutureBuilder<int>(
+            future: NotificationService.getUnreadNotificationsCount(
+              FirebaseAuth.instance.currentUser?.uid ?? '',
+            ),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BloggerNotificationsPage(),
+                        ),
+                      ).then((_) {
+                        // Refresh the unread count when returning from notifications page
+                        setState(() {});
+                      });
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
           IconButton(
