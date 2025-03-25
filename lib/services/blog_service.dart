@@ -132,6 +132,110 @@ class BlogService {
         .toList();
   }
 
+  // Get all recent posts for customer view (regardless of following)
+  static Future<List<BlogPost>> getAllRecentPosts() async {
+    try {
+      final snapshot = await _postsCollection
+          .where('status', isEqualTo: 'published') // Only published posts
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .get();
+
+      return snapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            // Ensure arrays are never null
+            if (data['likes'] == null) data['likes'] = [];
+            if (data['tags'] == null) data['tags'] = [];
+            if (data['metadata'] == null) data['metadata'] = {};
+            
+            return BlogPost.fromMap({'id': doc.id, ...data});
+          })
+          .toList();
+    } catch (e) {
+      print('Error fetching recent posts: $e');
+      return [];
+    }
+  }
+
+  // Get posts by tag for customer exploration
+  static Future<List<BlogPost>> getPostsByTag(String tag) async {
+    try {
+      final snapshot = await _postsCollection
+          .where('tags', arrayContains: tag)
+          .where('status', isEqualTo: 'published')
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .get();
+
+      return snapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            // Ensure arrays are never null
+            if (data['likes'] == null) data['likes'] = [];
+            if (data['tags'] == null) data['tags'] = [];
+            if (data['metadata'] == null) data['metadata'] = {};
+            
+            return BlogPost.fromMap({'id': doc.id, ...data});
+          })
+          .toList();
+    } catch (e) {
+      print('Error fetching posts by tag: $e');
+      if (e.toString().contains('indexes?create')) {
+        // Fallback to client-side filtering if index isn't ready
+        final snapshot = await _postsCollection
+            .where('status', isEqualTo: 'published')
+            .get();
+            
+        final allPosts = snapshot.docs.map((doc) {
+          final data = doc.data();
+          if (data['likes'] == null) data['likes'] = [];
+          if (data['tags'] == null) data['tags'] = [];
+          if (data['metadata'] == null) data['metadata'] = {};
+          
+          return BlogPost.fromMap({'id': doc.id, ...data});
+        }).toList();
+        
+        // Filter posts that contain the tag
+        return allPosts.where((post) => post.tags.contains(tag)).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }
+      return [];
+    }
+  }
+
+  // Get popular posts based on likes and views
+  static Future<List<BlogPost>> getPopularPosts() async {
+    try {
+      // For simplicity, we'll just get recent posts and sort by likes count
+      final snapshot = await _postsCollection
+          .where('status', isEqualTo: 'published')
+          .orderBy('createdAt', descending: true)
+          .limit(50) // Get more posts to sort
+          .get();
+
+      final posts = snapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            if (data['likes'] == null) data['likes'] = [];
+            if (data['tags'] == null) data['tags'] = [];
+            if (data['metadata'] == null) data['metadata'] = {};
+            
+            return BlogPost.fromMap({'id': doc.id, ...data});
+          })
+          .toList();
+      
+      // Sort by likes count (most likes first)
+      posts.sort((a, b) => b.likes.length.compareTo(a.likes.length));
+      
+      // Return top 20
+      return posts.take(20).toList();
+    } catch (e) {
+      print('Error fetching popular posts: $e');
+      return [];
+    }
+  }
+
   static Future<List<BlogPost>> getBloggerPosts(String bloggerId) async {
     try {
       final snapshot = await _postsCollection

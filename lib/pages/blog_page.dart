@@ -49,17 +49,44 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
       final bloggers = await BlogService.getPopularBloggers();
       final reels = await BlogService.getReels();
       
-      // Only get feed posts if user is authenticated
-      List<BlogPost> feedPosts = [];
+      // Get recent posts for all users - not just followed bloggers
+      List<BlogPost> recentPosts = await BlogService.getAllRecentPosts();
+      
+      // If user is authenticated, also get personalized feed posts
+      List<BlogPost> personalizedPosts = [];
       if (user != null) {
-        feedPosts = await BlogService.getFeedPosts(user.uid);
+        personalizedPosts = await BlogService.getFeedPosts(user.uid);
+        
+        // Merge with recent posts and remove duplicates
+        final allPostIds = <String>{};
+        final allPosts = <BlogPost>[];
+        
+        // Add personalized posts first (higher priority)
+        for (final post in personalizedPosts) {
+          if (!allPostIds.contains(post.id)) {
+            allPostIds.add(post.id);
+            allPosts.add(post);
+          }
+        }
+        
+        // Then add recent posts that aren't duplicates
+        for (final post in recentPosts) {
+          if (!allPostIds.contains(post.id)) {
+            allPostIds.add(post.id);
+            allPosts.add(post);
+          }
+        }
+        
+        // Sort by creation date (newest first)
+        allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        recentPosts = allPosts;
       }
 
       if (mounted) {
         setState(() {
           _bloggers = bloggers;
           _reels = reels;
-          _feedPosts = feedPosts;
+          _feedPosts = recentPosts;
           _isLoading = false;
         });
       }
@@ -347,7 +374,10 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => BloggerProfilePage(blogger: blogger),
+              builder: (context) => BloggerProfilePage(
+                bloggerId: blogger.id,
+                bloggerName: blogger.name,
+              ),
             ),
           ).then((_) => _loadData());
         },
@@ -639,7 +669,10 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => BloggerProfilePage(blogger: blogger),
+                                      builder: (context) => BloggerProfilePage(
+                                        bloggerId: blogger.id,
+                                        bloggerName: blogger.name,
+                                      ),
                                     ),
                                   );
                                 }
@@ -854,15 +887,53 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Post Header
-          ListTile(
-            leading: CircleAvatar(
-              backgroundImage: NetworkImage(post.userImage),
-            ),
-            title: Text(post.userName),
-            subtitle: Text(
-              _formatTimestamp(post.createdAt),
-              style: TextStyle(color: Colors.grey[600]),
+          // Author info
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BloggerProfilePage(
+                    bloggerId: post.userId,
+                    bloggerName: post.userName,
+                  ),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: post.userImage.isNotEmpty
+                        ? NetworkImage(post.userImage)
+                        : null,
+                    radius: 20,
+                    child: post.userImage.isEmpty
+                        ? Text(post.userName.substring(0, 1).toUpperCase())
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.userName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        _formatTimestamp(post.createdAt),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
 
