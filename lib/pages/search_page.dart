@@ -22,7 +22,7 @@ class _SearchPageState extends State<SearchPage> {
   // Filter states
   final Set<String> _selectedCuisines = {};
   final Set<String> _selectedTags = {};
-  RangeValues _priceRange = const RangeValues(0, 4); // 0-4 price range ($-$$$$)
+  RangeValues _priceRange = const RangeValues(200, 5000); // ₹200-₹20000 price range
   double _minRating = 0;
   String _sortBy = 'rating'; // Default sort by rating
 
@@ -129,7 +129,7 @@ class _SearchPageState extends State<SearchPage> {
                           setModalState(() {
                             _selectedCuisines.clear();
                             _selectedTags.clear();
-                            _priceRange = const RangeValues(0, 4);
+                            _priceRange = const RangeValues(200, 5000);
                             _minRating = 0;
                           });
                         },
@@ -208,18 +208,28 @@ class _SearchPageState extends State<SearchPage> {
                   const SizedBox(height: 8),
                   RangeSlider(
                     values: _priceRange,
-                    min: 0,
-                    max: 4,
-                    divisions: 4,
+                    min: 200,
+                    max: 20000,
+                    divisions: 20,
                     labels: RangeLabels(
-                      '\$' * (_priceRange.start.round() + 1),
-                      '\$' * (_priceRange.end.round() + 1),
+                      '₹${_priceRange.start.round()}',
+                      '₹${_priceRange.end.round()}',
                     ),
                     onChanged: (values) {
                       setModalState(() {
                         _priceRange = values;
                       });
                     },
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text('₹200', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text('₹20,000', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 
