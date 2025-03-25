@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/date_format_util.dart';
 
 class RestaurantOrdersPage extends StatefulWidget {
   const RestaurantOrdersPage({super.key});
@@ -15,79 +16,32 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     
-    // Add dummy data for demonstration
+    // Empty orders list by default
+    // For a real app, you would fetch orders from Firebase
+    _orders = [];
+    
+    // Uncomment and modify this code when you want to test with sample data
+    /*
     _orders = [
       {
         'id': 'ORD-1001',
         'customerName': 'John Doe',
         'items': [
-          {'name': 'Caesar Salad', 'quantity': 1, 'price': 8.99},
-          {'name': 'Grilled Salmon', 'quantity': 2, 'price': 18.99},
+          {'name': 'Caesar Salad', 'quantity': 1, 'price': 249},
+          {'name': 'Grilled Salmon', 'quantity': 2, 'price': 599},
         ],
-        'total': 46.97,
+        'total': 1447,
         'status': 'Pending',
         'time': DateTime.now().subtract(const Duration(minutes: 5)),
         'type': 'Delivery',
-        'address': '123 Main St, New York, NY 10001',
-        'phone': '+1 (555) 123-4567',
+        'address': '123 Main St, New Delhi, 110001',
+        'phone': '+91 98765 43210',
       },
-      {
-        'id': 'ORD-1002',
-        'customerName': 'Jane Smith',
-        'items': [
-          {'name': 'Iced Tea', 'quantity': 2, 'price': 2.99},
-          {'name': 'Chocolate Cake', 'quantity': 1, 'price': 6.99},
-        ],
-        'total': 12.97,
-        'status': 'Preparing',
-        'time': DateTime.now().subtract(const Duration(minutes: 15)),
-        'type': 'Pickup',
-        'phone': '+1 (555) 987-6543',
-      },
-      {
-        'id': 'ORD-1003',
-        'customerName': 'Mike Johnson',
-        'items': [
-          {'name': 'Grilled Salmon', 'quantity': 1, 'price': 18.99},
-          {'name': 'Caesar Salad', 'quantity': 1, 'price': 8.99},
-          {'name': 'Iced Tea', 'quantity': 1, 'price': 2.99},
-        ],
-        'total': 30.97,
-        'status': 'Ready',
-        'time': DateTime.now().subtract(const Duration(minutes: 30)),
-        'type': 'Delivery',
-        'address': '456 Elm St, New York, NY 10002',
-        'phone': '+1 (555) 234-5678',
-      },
-      {
-        'id': 'ORD-1004',
-        'customerName': 'Sarah Williams',
-        'items': [
-          {'name': 'Chocolate Cake', 'quantity': 2, 'price': 6.99},
-        ],
-        'total': 13.98,
-        'status': 'Completed',
-        'time': DateTime.now().subtract(const Duration(hours: 2)),
-        'type': 'Pickup',
-        'phone': '+1 (555) 345-6789',
-      },
-      {
-        'id': 'ORD-1005',
-        'customerName': 'David Brown',
-        'items': [
-          {'name': 'Grilled Salmon', 'quantity': 3, 'price': 18.99},
-          {'name': 'Iced Tea', 'quantity': 3, 'price': 2.99},
-        ],
-        'total': 65.94,
-        'status': 'Cancelled',
-        'time': DateTime.now().subtract(const Duration(hours: 3)),
-        'type': 'Delivery',
-        'address': '789 Oak St, New York, NY 10003',
-        'phone': '+1 (555) 456-7890',
-      },
+      // Add more sample orders as needed
     ];
+    */
   }
   
   @override
@@ -105,64 +59,46 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
 
   @override
   Widget build(BuildContext context) {
-    return _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : Scaffold(
-            body: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Orders',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.search),
-                        onPressed: () {
-                          // TODO: Implement search
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Tab bar
-                TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabs: const [
-                    Tab(text: 'All'),
-                    Tab(text: 'Pending'),
-                    Tab(text: 'Preparing'),
-                    Tab(text: 'Ready'),
-                    Tab(text: 'Completed'),
-                    Tab(text: 'Cancelled'),
-                  ],
-                ),
-                
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildOrdersList('All'),
-                      _buildOrdersList('Pending'),
-                      _buildOrdersList('Preparing'),
-                      _buildOrdersList('Ready'),
-                      _buildOrdersList('Completed'),
-                      _buildOrdersList('Cancelled'),
-                    ],
-                  ),
-                ),
+    return Scaffold(
+      body: Column(
+        children: [
+          // Tabs
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              labelColor: Theme.of(context).primaryColor,
+              unselectedLabelColor: Colors.grey[600],
+              indicatorColor: Theme.of(context).primaryColor,
+              tabs: const [
+                Tab(text: 'All'),
+                Tab(text: 'Pending'),
+                Tab(text: 'Preparing'),
+                Tab(text: 'Ready'),
+                Tab(text: 'Completed'),
+                Tab(text: 'Cancelled'),
               ],
             ),
-          );
+          ),
+          
+          // Order lists
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildOrdersList('All'),
+                _buildOrdersList('Pending'),
+                _buildOrdersList('Preparing'),
+                _buildOrdersList('Ready'),
+                _buildOrdersList('Completed'),
+                _buildOrdersList('Cancelled'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildOrdersList(String status) {
@@ -176,13 +112,24 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
             Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              'No $status orders',
+              'No $status orders yet',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],
                 fontWeight: FontWeight.bold,
               ),
             ),
+            if (status == 'All') ...[
+              const SizedBox(height: 8),
+              Text(
+                'Orders will appear here when customers place them',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       );
@@ -197,240 +144,190 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
       },
     );
   }
-
+  
   Widget _buildOrderCard(Map<String, dynamic> order) {
-    Color statusColor;
-    IconData statusIcon;
+    final statusColors = {
+      'Pending': Colors.blue,
+      'Preparing': Colors.orange,
+      'Ready': Colors.green,
+      'Completed': Colors.teal,
+      'Cancelled': Colors.red,
+    };
     
-    switch (order['status']) {
-      case 'Pending':
-        statusColor = Colors.orange;
-        statusIcon = Icons.access_time;
-        break;
-      case 'Preparing':
-        statusColor = Colors.blue;
-        statusIcon = Icons.restaurant;
-        break;
-      case 'Ready':
-        statusColor = Colors.green;
-        statusIcon = Icons.check_circle;
-        break;
-      case 'Completed':
-        statusColor = Colors.green.shade800;
-        statusIcon = Icons.done_all;
-        break;
-      case 'Cancelled':
-        statusColor = Colors.red;
-        statusIcon = Icons.cancel;
-        break;
-      default:
-        statusColor = Colors.grey;
-        statusIcon = Icons.help_outline;
-    }
-
+    final statusColor = statusColors[order['status']] ?? Colors.grey;
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      child: ExpansionTile(
-        childrenPadding: const EdgeInsets.all(16),
-        title: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              order['id'],
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(statusIcon, size: 14, color: statusColor),
-                  const SizedBox(width: 4),
-                  Text(
+            // Order header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  order['id'],
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
                     order['status'],
                     style: TextStyle(
                       color: statusColor,
+                      fontWeight: FontWeight.bold,
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Customer info
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(order['customerName']),
+                const SizedBox(width: 16),
+                const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(_formatTime(order['time'])),
+              ],
+            ),
+            const SizedBox(height: 8),
+            
+            // Order type
+            Row(
+              children: [
+                Icon(
+                  order['type'] == 'Delivery' ? Icons.delivery_dining : Icons.shopping_bag_outlined,
+                  size: 16,
+                  color: Colors.grey,
+                ),
+                const SizedBox(width: 8),
+                Text(order['type']),
+                if (order['type'] == 'Delivery' && order['address'] != null) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      order['address'],
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              '${order['customerName']} • ${_formatTime(order['time'])}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+            
+            const Divider(height: 24),
+            
+            // Order items
+            ...List.generate(
+              (order['items'] as List).length,
+              (index) {
+                final item = order['items'][index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Text('${item['quantity']}x'),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(item['name'])),
+                      Text(
+                        DateFormatUtil.formatCurrencyIndian(item['price'] * item['quantity']),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${order['type']} • \$${order['total'].toStringAsFixed(2)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-          ],
-        ),
-        children: [
-          // Order items
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Order Items',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+            
+            const Divider(height: 24),
+            
+            // Order total
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              ...List.generate(
-                (order['items'] as List).length,
-                (index) {
-                  final item = order['items'][index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${item['quantity']}x ${item['name']}'),
-                        Text('\$${(item['quantity'] * item['price']).toStringAsFixed(2)}'),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const Divider(),
+                Text(
+                  DateFormatUtil.formatCurrencyIndian(order['total']),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Action buttons
+            if (order['status'] != 'Completed' && order['status'] != 'Cancelled')
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Total',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // TODO: Update order status
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(_getNextStatusText(order['status'])),
                     ),
                   ),
-                  Text(
-                    '\$${order['total'].toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () {
+                      // Cancel order
+                    },
+                    child: const Text('Cancel'),
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 16),
-              // Customer details
-              const Text(
-                'Customer Details',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildDetailRow(Icons.person, order['customerName']),
-              _buildDetailRow(Icons.phone, order['phone']),
-              if (order['type'] == 'Delivery')
-                _buildDetailRow(Icons.location_on, order['address']),
-              
-              const SizedBox(height: 16),
-              // Action buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: _buildActionButtons(order),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
-
-  Widget _buildDetailRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.grey[600]),
-          const SizedBox(width: 8),
-          Text(text),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildActionButtons(Map<String, dynamic> order) {
-    final status = order['status'];
-    final List<Widget> buttons = [];
-    
-    if (status == 'Pending') {
-      buttons.add(
-        ElevatedButton.icon(
-          icon: const Icon(Icons.restaurant),
-          label: const Text('Start Preparing'),
-          onPressed: () => _updateOrderStatus(order, 'Preparing'),
-        ),
-      );
-      buttons.add(const SizedBox(width: 8));
-      buttons.add(
-        OutlinedButton.icon(
-          icon: const Icon(Icons.cancel, color: Colors.red),
-          label: const Text('Cancel', style: TextStyle(color: Colors.red)),
-          onPressed: () => _updateOrderStatus(order, 'Cancelled'),
-        ),
-      );
-    } else if (status == 'Preparing') {
-      buttons.add(
-        ElevatedButton.icon(
-          icon: const Icon(Icons.check_circle),
-          label: const Text('Mark as Ready'),
-          onPressed: () => _updateOrderStatus(order, 'Ready'),
-        ),
-      );
-    } else if (status == 'Ready') {
-      buttons.add(
-        ElevatedButton.icon(
-          icon: const Icon(Icons.done_all),
-          label: const Text('Complete Order'),
-          onPressed: () => _updateOrderStatus(order, 'Completed'),
-        ),
-      );
+  
+  String _getNextStatusText(String currentStatus) {
+    switch (currentStatus) {
+      case 'Pending':
+        return 'Accept & Prepare';
+      case 'Preparing':
+        return 'Mark as Ready';
+      case 'Ready':
+        return 'Complete Order';
+      default:
+        return 'Update Status';
     }
-    
-    return buttons;
   }
-
-  void _updateOrderStatus(Map<String, dynamic> order, String newStatus) {
-    setState(() {
-      order['status'] = newStatus;
-    });
-    
-    // Show a snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Order ${order['id']} updated to $newStatus'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
+  
   String _formatTime(DateTime time) {
-    return '${time.hour}:${time.minute.toString().padLeft(2, '0')}';
+    return DateFormatUtil.formatTimeIndian(time);
   }
 } 

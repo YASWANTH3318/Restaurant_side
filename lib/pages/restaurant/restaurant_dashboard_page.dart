@@ -5,6 +5,7 @@ import 'package:greedy_bites/pages/restaurant/restaurant_menu_page.dart';
 import 'package:greedy_bites/pages/restaurant/restaurant_orders_page.dart';
 import 'package:greedy_bites/pages/restaurant/restaurant_profile_page.dart';
 import 'package:greedy_bites/pages/restaurant/restaurant_analytics_page.dart';
+import '../../utils/date_format_util.dart';
 
 class RestaurantDashboardPage extends StatefulWidget {
   const RestaurantDashboardPage({super.key});
@@ -49,13 +50,13 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        // For demo purposes, setting placeholder data
+        // Set default values (zeros) for a new restaurant
         setState(() {
           _restaurantName = user.displayName ?? 'Restaurant Owner';
-          _totalOrders = 158;
-          _totalRevenue = 3245.75;
-          _newCustomers = 24;
-          _avgRating = 4.7;
+          _totalOrders = 0;
+          _totalRevenue = 0;
+          _newCustomers = 0;
+          _avgRating = 0;
           _isLoading = false;
         });
         
@@ -123,7 +124,7 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
                   Expanded(
                     child: _buildStatCard(
                       'Revenue',
-                      '\$${_totalRevenue.toStringAsFixed(2)}',
+                      DateFormatUtil.formatCurrencyIndian(_totalRevenue),
                       Icons.attach_money,
                       Colors.green,
                     ),
@@ -167,7 +168,7 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
               
               // Management cards
               GridView.count(
-                crossAxisCount: 2,
+                crossAxisCount: 3,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
                 shrinkWrap: true,
@@ -191,16 +192,6 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
                     () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const RestaurantOrdersPage()),
-                    ),
-                  ),
-                  _buildManagementCard(
-                    'Profile',
-                    'Manage restaurant profile',
-                    Icons.store,
-                    Colors.teal,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RestaurantProfilePage()),
                     ),
                   ),
                   _buildManagementCard(
@@ -269,38 +260,43 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
   }
   
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontWeight: FontWeight.w500,
-                ),
+    // Format numbers using Indian format if value is a number and not already formatted
+    String displayValue = value;
+    if (title == 'Orders' || title == 'New Customers') {
+      try {
+        final numValue = int.parse(value);
+        displayValue = DateFormatUtil.formatNumberIndian(numValue);
+      } catch (e) {
+        // Not a number or already formatted, keep as is
+      }
+    }
+    
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 12),
+            Text(
+              displayValue,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

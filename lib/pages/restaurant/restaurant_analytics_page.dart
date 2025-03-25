@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../utils/date_format_util.dart';
 
 class RestaurantAnalyticsPage extends StatefulWidget {
   const RestaurantAnalyticsPage({super.key});
@@ -12,29 +13,29 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   bool _isLoading = false;
   late TabController _tabController;
   
-  // Mock data
-  List<double> _weeklyRevenue = [410.50, 680.25, 590.75, 720.30, 850.20, 950.75, 780.40];
+  // Mock data - set to zero initially
+  List<double> _weeklyRevenue = [0, 0, 0, 0, 0, 0, 0];
   Map<String, double> _categoryRevenue = {
-    'Main Courses': 3250.75,
-    'Appetizers': 1850.30,
-    'Desserts': 1250.85,
-    'Beverages': 1050.20,
+    'Main Courses': 0,
+    'Appetizers': 0,
+    'Desserts': 0,
+    'Beverages': 0,
   };
   List<Map<String, dynamic>> _topSellingItems = [
-    {'name': 'Grilled Salmon', 'sales': 124, 'revenue': 2351.76},
-    {'name': 'Caesar Salad', 'sales': 98, 'revenue': 881.02},
-    {'name': 'Chocolate Cake', 'sales': 76, 'revenue': 531.24},
-    {'name': 'Iced Tea', 'sales': 156, 'revenue': 466.44},
-    {'name': 'Burger', 'sales': 65, 'revenue': 877.50},
+    {'name': 'Grilled Salmon', 'sales': 0, 'revenue': 0},
+    {'name': 'Caesar Salad', 'sales': 0, 'revenue': 0},
+    {'name': 'Chocolate Cake', 'sales': 0, 'revenue': 0},
+    {'name': 'Iced Tea', 'sales': 0, 'revenue': 0},
+    {'name': 'Burger', 'sales': 0, 'revenue': 0},
   ];
   List<Map<String, dynamic>> _customerTrends = [
-    {'day': 'Mon', 'new': 5, 'returning': 18},
-    {'day': 'Tue', 'new': 7, 'returning': 15},
-    {'day': 'Wed', 'new': 4, 'returning': 20},
-    {'day': 'Thu', 'new': 9, 'returning': 22},
-    {'day': 'Fri', 'new': 12, 'returning': 28},
-    {'day': 'Sat', 'new': 14, 'returning': 32},
-    {'day': 'Sun', 'new': 8, 'returning': 25},
+    {'day': 'Mon', 'new': 0, 'returning': 0},
+    {'day': 'Tue', 'new': 0, 'returning': 0},
+    {'day': 'Wed', 'new': 0, 'returning': 0},
+    {'day': 'Thu', 'new': 0, 'returning': 0},
+    {'day': 'Fri', 'new': 0, 'returning': 0},
+    {'day': 'Sat', 'new': 0, 'returning': 0},
+    {'day': 'Sun', 'new': 0, 'returning': 0},
   ];
   
   @override
@@ -143,10 +144,10 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'Total Revenue',
-                  '\$4,983.15',
+                  DateFormatUtil.formatCurrencyIndian(0),
                   Icons.attach_money,
                   Colors.green,
-                  '+12.5% vs last week',
+                  '+0% vs last week',
                 ),
               ),
             ],
@@ -159,20 +160,20 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'Average Order',
-                  '\$31.52',
+                  DateFormatUtil.formatCurrencyIndian(0),
                   Icons.receipt_long,
                   Colors.blue,
-                  '+5.3% vs last week',
+                  '+0% vs last week',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
                   'Orders',
-                  '158',
+                  '0',
                   Icons.shopping_cart,
                   Colors.orange,
-                  '+8.7% vs last week',
+                  '+0% vs last week',
                 ),
               ),
             ],
@@ -268,7 +269,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
                         Expanded(
                           flex: 2,
                           child: Text(
-                            '\$${item['revenue'].toStringAsFixed(2)}',
+                            DateFormatUtil.formatCurrencyIndian(item['revenue']),
                             textAlign: TextAlign.right,
                             style: TextStyle(
                               color: Theme.of(context).primaryColor,
@@ -848,7 +849,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
     );
   }
   
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, [String? subtitle]) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, String trend) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -867,14 +868,33 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontWeight: FontWeight.w500,
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: trend.startsWith('+') ? Colors.green[50] : Colors.red[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  trend,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: trend.startsWith('+') ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -882,22 +902,11 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
           const SizedBox(height: 12),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 22,
+            style: const TextStyle(
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: color,
             ),
           ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: subtitle.contains('+') ? Colors.green : Colors.red,
-              ),
-            ),
-          ],
         ],
       ),
     );

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/user_service.dart';
 import 'restaurant_details_page.dart';
 import 'business_hours_page.dart';
+import 'help_support_page.dart';
 
 class RestaurantProfilePage extends StatefulWidget {
   const RestaurantProfilePage({super.key});
@@ -134,6 +135,20 @@ class _RestaurantProfilePageState extends State<RestaurantProfilePage> {
                 title: const Text('Business Hours'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: _navigateToBusinessHours,
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('Help & Support'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HelpSupportPage(),
+                    ),
+                  );
+                },
               ),
               const Divider(),
               ListTile(
