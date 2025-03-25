@@ -28,14 +28,15 @@ class _SearchPageState extends State<SearchPage> {
 
   // Available filter options
   final List<String> _availableCuisines = [
-    'Indian',
-    'Italian',
-    'Chinese',
-    'Japanese',
-    'Mexican',
-    'Thai',
-    'American',
-    'Mediterranean'
+    'South Indian',
+    'North Indian',
+    'Hyderabadi',
+    'Bengali',
+    'Gujarati',
+    'Punjabi',
+    'Rajasthani',
+    'Kerala',
+    'Andhra'
   ];
 
   final List<String> _availableTags = [
@@ -57,6 +58,8 @@ class _SearchPageState extends State<SearchPage> {
     'name'
   ];
 
+  String _searchQuery = '';
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -64,132 +67,31 @@ class _SearchPageState extends State<SearchPage> {
     super.dispose();
   }
 
-  Future<void> _handleSearch() async {
-    final query = _searchController.text.trim();
-
-    // Cancel any previous search
-    _debounceTimer?.cancel();
-
-    // If query is empty, clear results
-    if (query.isEmpty) {
-      setState(() {
-        _searchResults = null;
-        _isLoading = false;
-        _error = null;
-      });
-      return;
-    }
-
-    // Start loading state immediately
+  Future<void> _handleSearch(String query) async {
     setState(() {
+      _searchQuery = query;
       _isLoading = true;
-      _error = null;
     });
 
-    // Debounce the search
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      try {
-        final results = await RestaurantService.searchRestaurants(query);
-
-        // Apply filters
-        var filteredResults = results.where((restaurant) {
-          // Filter by cuisine
-          if (_selectedCuisines.isNotEmpty &&
-              !_selectedCuisines.contains(restaurant.cuisine)) {
-            return false;
-          }
-
-          // Filter by tags
-          if (_selectedTags.isNotEmpty &&
-              !restaurant.tags.any((tag) => _selectedTags.contains(tag))) {
-            return false;
-          }
-
-          // Filter by price range
-          final menuItems = restaurant.menu.values.expand((items) => items).toList();
-          if (menuItems.isNotEmpty) {
-            final totalPrice = menuItems.fold<double>(
-              0,
-              (sum, item) => sum + item.price,
-            );
-            final avgPrice = totalPrice / menuItems.length;
-            // Calculate price level (0-4) based on average price
-            // Assuming price ranges:
-            // $ = 0-15
-            // $$ = 15-30
-            // $$$ = 30-50
-            // $$$$ = 50+
-            final priceLevel = avgPrice <= 15 
-                ? 0 
-                : avgPrice <= 30 
-                    ? 1 
-                    : avgPrice <= 50 
-                        ? 2 
-                        : avgPrice <= 75 
-                            ? 3 
-                            : 4;
-            
-            if (priceLevel < _priceRange.start || priceLevel > _priceRange.end) {
-              return false;
-            }
-          }
-
-          // Filter by rating
-          if (restaurant.rating < _minRating) {
-            return false;
-          }
-
-          return true;
-        }).toList();
-
-        // Apply sorting
-        filteredResults.sort((a, b) {
-          switch (_sortBy) {
-            case 'rating':
-              return b.rating.compareTo(a.rating);
-            case 'distance':
-              // Convert distance strings (e.g., "2.5 km") to numbers for comparison
-              final aDistance = double.tryParse(a.distance.split(' ').first) ?? 0;
-              final bDistance = double.tryParse(b.distance.split(' ').first) ?? 0;
-              return aDistance.compareTo(bDistance);
-            case 'price_low':
-            case 'price_high':
-              // Calculate average price for each restaurant
-              final aPrice = a.menu.values
-                  .expand((items) => items)
-                  .map((item) => item.price)
-                  .fold<double>(0, (sum, price) => sum + price) /
-                  a.menu.values.expand((items) => items).length;
-              final bPrice = b.menu.values
-                  .expand((items) => items)
-                  .map((item) => item.price)
-                  .fold<double>(0, (sum, price) => sum + price) /
-                  b.menu.values.expand((items) => items).length;
-              return _sortBy == 'price_low'
-                  ? aPrice.compareTo(bPrice)
-                  : bPrice.compareTo(aPrice);
-            case 'name':
-              return a.name.compareTo(b.name);
-            default:
-              return 0;
-          }
+    try {
+      final results = await RestaurantService.searchRestaurants(query);
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _isLoading = false;
         });
-
-        if (mounted) {
-          setState(() {
-            _searchResults = filteredResults;
-            _isLoading = false;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _error = 'Failed to search restaurants. Please try again.';
-            _isLoading = false;
-          });
-        }
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _searchResults = null;
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   void _showFilterSheet() {
@@ -350,7 +252,7 @@ class _SearchPageState extends State<SearchPage> {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        _handleSearch();
+                        _handleSearch(_searchQuery);
                       },
                       child: const Text('Apply Filters'),
                     ),
@@ -401,7 +303,7 @@ class _SearchPageState extends State<SearchPage> {
                       _sortBy = option;
                     });
                     Navigator.pop(context);
-                    _handleSearch();
+                    _handleSearch(_searchQuery);
                   },
                 ),
               ),
@@ -436,7 +338,7 @@ class _SearchPageState extends State<SearchPage> {
                 TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search restaurants, cuisines, or dishes',
+                    hintText: 'Search for restaurants or dishes',
                     prefixIcon: _isLoading 
                         ? SizedBox(
                             width: 24,
@@ -469,7 +371,7 @@ class _SearchPageState extends State<SearchPage> {
                     filled: true,
                     fillColor: Colors.grey[200],
                   ),
-                  onChanged: (value) => _handleSearch(),
+                  onChanged: _handleSearch,
                 ),
                 const SizedBox(height: 16),
 
@@ -501,80 +403,29 @@ class _SearchPageState extends State<SearchPage> {
             ),
           ),
 
-          // Results
+          // Search Results
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _error != null
+                : _searchResults == null || _searchResults!.isEmpty
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline,
-                                size: 48, color: Colors.red),
-                            const SizedBox(height: 16),
-                            Text(_error!,
-                                style: const TextStyle(color: Colors.red)),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _handleSearch,
-                              child: const Text('Retry'),
-                            ),
-                          ],
+                        child: Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No results found for "$_searchQuery"'
+                              : 'Search for restaurants or use filters to find what you\'re looking for',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[600]),
                         ),
                       )
-                    : _searchResults == null
-                        ? const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.search,
-                                  size: 64,
-                                  color: Colors.grey,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Search for restaurants\nby name, cuisine, or dishes',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : _searchResults!.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.search_off,
-                                      size: 64,
-                                      color: Colors.grey,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No restaurants found for\n"${_searchController.text}"',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: _searchResults!.length,
-                                itemBuilder: (context, index) {
-                                  final restaurant = _searchResults![index];
-                                  return RestaurantCard(restaurant: restaurant);
-                                },
-                              ),
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _searchResults!.length,
+                        itemBuilder: (context, index) {
+                          return RestaurantCard(
+                            restaurant: _searchResults![index],
+                          );
+                        },
+                      ),
           ),
         ],
       ),
