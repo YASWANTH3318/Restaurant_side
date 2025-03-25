@@ -31,6 +31,7 @@ class _HomePageState extends State<HomePage> {
   String _searchQuery = '';
   bool _isLoading = true;
   String? _error;
+  String? _selectedCategory;
 
   @override
   void initState() {
@@ -52,6 +53,32 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           _featuredRestaurants = featured;
           _popularRestaurants = popular;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load restaurants. Please try again.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadRestaurantsByCategory(String category) async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+        _selectedCategory = category;
+      });
+
+      final restaurants = await RestaurantService.getRestaurantsByCategory(category);
+
+      if (mounted) {
+        setState(() {
+          _popularRestaurants = restaurants;
           _isLoading = false;
         });
       }
@@ -316,33 +343,46 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Categories',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Categories',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (_selectedCategory != null)
+                          TextButton(
+                            onPressed: () {
+                              _loadRestaurants();
+                              setState(() => _selectedCategory = null);
+                            },
+                            child: const Text('Clear Filter'),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 100,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _buildCategoryCard('Pizza', Icons.local_pizza),
-                          _buildCategoryCard('Burger', Icons.lunch_dining),
-                          _buildCategoryCard('Sushi', Icons.set_meal),
-                          _buildCategoryCard('Dessert', Icons.icecream),
-                          _buildCategoryCard('Drinks', Icons.local_bar),
-                        ],
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildCategoryCard('Veg', Icons.eco),
+                            const SizedBox(width: 16),
+                            _buildCategoryCard('Non-Veg', Icons.restaurant),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
 
-              // Featured Restaurants
-              if (_featuredRestaurants != null && _featuredRestaurants!.isNotEmpty)
+              // Featured Restaurants (only show if no category is selected)
+              if (_selectedCategory == null && _featuredRestaurants != null && _featuredRestaurants!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -384,14 +424,18 @@ class _HomePageState extends State<HomePage> {
                 ),
             ],
 
-            // Popular or Search Results
+            // Popular or Search Results or Category Results
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _searchQuery.isEmpty ? 'Popular Near You' : 'Search Results',
+                    _searchQuery.isNotEmpty
+                        ? 'Search Results'
+                        : _selectedCategory != null
+                            ? '${_selectedCategory} Restaurants'
+                            : 'Popular Near You',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -414,9 +458,11 @@ class _HomePageState extends State<HomePage> {
                       child: Padding(
                         padding: const EdgeInsets.all(32),
                         child: Text(
-                          _searchQuery.isEmpty
-                              ? 'No restaurants available'
-                              : 'No restaurants found for "$_searchQuery"',
+                          _searchQuery.isNotEmpty
+                              ? 'No restaurants found for "$_searchQuery"'
+                              : _selectedCategory != null
+                                  ? 'No ${_selectedCategory} restaurants available'
+                                  : 'No restaurants available',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey[600]),
                         ),
@@ -1044,11 +1090,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCategoryCard(String title, IconData icon) {
+    final isSelected = _selectedCategory == title;
     return Card(
       margin: const EdgeInsets.only(right: 12),
+      color: isSelected ? Theme.of(context).primaryColor : null,
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to category
+          if (isSelected) {
+            // If category is already selected, clear the filter
+            _loadRestaurants();
+            setState(() => _selectedCategory = null);
+          } else {
+            // Load restaurants for the selected category
+            _loadRestaurantsByCategory(title);
+          }
         },
         child: SizedBox(
           width: 80,
@@ -1058,12 +1113,15 @@ class _HomePageState extends State<HomePage> {
               Icon(
                 icon,
                 size: 32,
-                color: Theme.of(context).primaryColor,
+                color: isSelected ? Colors.white : Theme.of(context).primaryColor,
               ),
               const SizedBox(height: 8),
               Text(
                 title,
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected ? Colors.white : null,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

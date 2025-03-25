@@ -120,6 +120,23 @@ class RestaurantService {
       return false;
     }
   }
+
+  static Future<List<Restaurant>> getRestaurantsByCategory(String category) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_collection)
+          .where('foodType', isEqualTo: category.toLowerCase())
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return Restaurant.fromMap({...data, 'id': doc.id});
+      }).toList();
+    } catch (e) {
+      print('Error getting restaurants by category: $e');
+      return [];
+    }
+  }
 }
 
 // Sample restaurant data
