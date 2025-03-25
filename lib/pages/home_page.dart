@@ -15,6 +15,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/blog_page.dart';
 import 'user/faq_page.dart';
 import 'notifications_page.dart';
+import 'user/address_list_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -872,7 +873,12 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.location_on_outlined,
             title: 'Delivery Address',
             onTap: () {
-              // TODO: Implement address management
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddressListPage(),
+                ),
+              );
             },
           ),
           _buildProfileOption(
