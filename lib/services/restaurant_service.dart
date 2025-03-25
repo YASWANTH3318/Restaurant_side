@@ -191,6 +191,113 @@ class RestaurantService {
       return [];
     }
   }
+
+  static Future<void> syncRestaurantData(String userId, Map<String, dynamic> restaurantData) async {
+    try {
+      // Convert user data to restaurant format
+      final restaurantDoc = {
+        'id': userId,
+        'name': restaurantData['name'],
+        'image': restaurantData['image'] ?? '',
+        'cuisine': restaurantData['cuisineTypes']?.isNotEmpty == true 
+            ? restaurantData['cuisineTypes'][0] 
+            : 'Multi-Cuisine',
+        'rating': 0.0, // New restaurants start with 0 rating
+        'deliveryTime': '30-45 min', // Default delivery time
+        'distance': 'Calculating...', // Will be calculated based on customer location
+        'tags': restaurantData['cuisineTypes'] ?? [],
+        'description': restaurantData['description'],
+        'menu': {}, // Empty menu initially
+        'availableTables': [], // Empty tables initially
+        'openingHours': {
+          'monday': {'isOpen': true, 'openTime': restaurantData['openingTime'], 'closeTime': restaurantData['closingTime']},
+          'tuesday': {'isOpen': true, 'openTime': restaurantData['openingTime'], 'closeTime': restaurantData['closingTime']},
+          'wednesday': {'isOpen': true, 'openTime': restaurantData['openingTime'], 'closeTime': restaurantData['closingTime']},
+          'thursday': {'isOpen': true, 'openTime': restaurantData['openingTime'], 'closeTime': restaurantData['closingTime']},
+          'friday': {'isOpen': true, 'openTime': restaurantData['openingTime'], 'closeTime': restaurantData['closingTime']},
+          'saturday': {'isOpen': true, 'openTime': restaurantData['openingTime'], 'closeTime': restaurantData['closingTime']},
+          'sunday': {'isOpen': true, 'openTime': restaurantData['openingTime'], 'closeTime': restaurantData['closingTime']},
+        },
+        'address': restaurantData['fullAddress'],
+        'phoneNumber': restaurantData['phoneNumber'],
+        'isFeatured': false,
+        'searchTags': [
+          restaurantData['name'].toLowerCase(),
+          ...?restaurantData['cuisineTypes']?.map((type) => type.toLowerCase()),
+          restaurantData['city'].toLowerCase(),
+        ],
+        'location': {
+          'city': restaurantData['city'],
+          'state': restaurantData['state'],
+          'pincode': restaurantData['pincode'],
+        },
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
+
+      // Update or create restaurant document in restaurants collection
+      await _firestore.collection('restaurants').doc(userId).set(restaurantDoc, SetOptions(merge: true));
+    } catch (e) {
+      print('Error syncing restaurant data: $e');
+      throw e;
+    }
+  }
+
+  static Future<void> updateRestaurantMenu(String restaurantId, List<Map<String, dynamic>> menuItems) async {
+    try {
+      // Organize menu items by category
+      final Map<String, List<Map<String, dynamic>>> menuByCategory = {};
+      
+      for (final item in menuItems) {
+        final category = item['category'] ?? 'Other';
+        if (!menuByCategory.containsKey(category)) {
+          menuByCategory[category] = [];
+        }
+        menuByCategory[category]!.add({
+          'name': item['name'],
+          'description': item['description'],
+          'price': item['price'],
+          'image': item['image'] ?? '',
+          'isVegetarian': item['isVegetarian'] ?? false,
+          'isVegan': item['isVegan'] ?? false,
+          'isSpicy': item['isSpicy'] ?? false,
+          'allergens': item['allergens'] ?? [],
+        });
+      }
+
+      // Update restaurant document with new menu
+      await _firestore.collection('restaurants').doc(restaurantId).update({
+        'menu': menuByCategory,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating restaurant menu: $e');
+      throw e;
+    }
+  }
+
+  static Future<void> updateRestaurantTables(String restaurantId, List<Map<String, dynamic>> tables) async {
+    try {
+      await _firestore.collection('restaurants').doc(restaurantId).update({
+        'availableTables': tables,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating restaurant tables: $e');
+      throw e;
+    }
+  }
+
+  static Future<void> updateRestaurantHours(String restaurantId, Map<String, dynamic> hours) async {
+    try {
+      await _firestore.collection('restaurants').doc(restaurantId).update({
+        'openingHours': hours,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating restaurant hours: $e');
+      throw e;
+    }
+  }
 }
 
 // Sample restaurant data

@@ -169,14 +169,15 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
               // Management cards
               GridView.count(
                 crossAxisCount: 3,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.95,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
                   _buildManagementCard(
                     'Menu',
-                    'Manage your food menu',
+                    'Manage menu',
                     Icons.restaurant_menu,
                     Colors.deepOrange,
                     () => Navigator.push(
@@ -186,7 +187,7 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
                   ),
                   _buildManagementCard(
                     'Orders',
-                    'Track & manage orders',
+                    'Track orders',
                     Icons.receipt_long,
                     Colors.blue,
                     () => Navigator.push(
@@ -196,7 +197,7 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
                   ),
                   _buildManagementCard(
                     'Analytics',
-                    'View detailed analytics',
+                    'View stats',
                     Icons.analytics,
                     Colors.purple,
                     () => Navigator.push(
@@ -260,43 +261,57 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
   }
   
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    // Format numbers using Indian format if value is a number and not already formatted
-    String displayValue = value;
-    if (title == 'Orders' || title == 'New Customers') {
-      try {
-        final numValue = int.parse(value);
-        displayValue = DateFormatUtil.formatNumberIndian(numValue);
-      } catch (e) {
-        // Not a number or already formatted, keep as is
-      }
-    }
-    
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 12),
-            Text(
-              displayValue,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -306,7 +321,7 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -319,28 +334,48 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 36),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 18),
+                ),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Flexible(
+                  child: Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey[600],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            );
+          }
         ),
       ),
     );
@@ -351,6 +386,7 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
@@ -358,9 +394,9 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,7 +405,10 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
                   title,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   subtitle,
@@ -377,14 +416,17 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
                     fontSize: 12,
                     color: Colors.grey[600],
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 4),
           Text(
             time,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: Colors.grey[500],
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/restaurant_service.dart';
 
 class BusinessHoursPage extends StatefulWidget {
   const BusinessHoursPage({super.key});
@@ -11,32 +12,20 @@ class BusinessHoursPage extends StatefulWidget {
 
 class _BusinessHoursPageState extends State<BusinessHoursPage> {
   bool _isLoading = true;
-  final Map<String, bool> _isOpenMap = {};
-  final Map<String, TimeOfDay?> _openingTimeMap = {};
-  final Map<String, TimeOfDay?> _closingTimeMap = {};
-  final List<String> _weekDays = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday'
-  ];
+  final Map<String, Map<String, dynamic>> _businessHours = {
+    'monday': {'isOpen': true, 'openTime': '09:00', 'closeTime': '22:00'},
+    'tuesday': {'isOpen': true, 'openTime': '09:00', 'closeTime': '22:00'},
+    'wednesday': {'isOpen': true, 'openTime': '09:00', 'closeTime': '22:00'},
+    'thursday': {'isOpen': true, 'openTime': '09:00', 'closeTime': '22:00'},
+    'friday': {'isOpen': true, 'openTime': '09:00', 'closeTime': '22:00'},
+    'saturday': {'isOpen': true, 'openTime': '09:00', 'closeTime': '22:00'},
+    'sunday': {'isOpen': true, 'openTime': '09:00', 'closeTime': '22:00'},
+  };
 
   @override
   void initState() {
     super.initState();
-    _initializeBusinessHours();
     _loadBusinessHours();
-  }
-
-  void _initializeBusinessHours() {
-    for (var day in _weekDays) {
-      _isOpenMap[day] = true;
-      _openingTimeMap[day] = const TimeOfDay(hour: 9, minute: 0);
-      _closingTimeMap[day] = const TimeOfDay(hour: 21, minute: 0);
-    }
   }
 
   Future<void> _loadBusinessHours() async {
@@ -50,58 +39,23 @@ class _BusinessHoursPageState extends State<BusinessHoursPage> {
           .get();
 
       if (doc.exists && doc.data()!.containsKey('businessHours')) {
-        final businessHours = doc.data()!['businessHours'] as Map<String, dynamic>;
-        
         setState(() {
-          for (var day in _weekDays) {
-            if (businessHours.containsKey(day)) {
-              final dayData = businessHours[day] as Map<String, dynamic>;
-              _isOpenMap[day] = dayData['isOpen'] ?? true;
-              
-              if (dayData['openingTime'] != null) {
-                final openTime = dayData['openingTime'].toString().split(':');
-                _openingTimeMap[day] = TimeOfDay(
-                  hour: int.parse(openTime[0]),
-                  minute: int.parse(openTime[1]),
-                );
-              }
-              
-              if (dayData['closingTime'] != null) {
-                final closeTime = dayData['closingTime'].toString().split(':');
-                _closingTimeMap[day] = TimeOfDay(
-                  hour: int.parse(closeTime[0]),
-                  minute: int.parse(closeTime[1]),
-                );
-              }
-            }
-          }
+          _businessHours.clear();
+          _businessHours.addAll(
+            Map<String, Map<String, dynamic>>.from(
+              doc.data()!['businessHours'],
+            ),
+          );
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading business hours: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading business hours: $e')),
+        );
+      }
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _selectTime(BuildContext context, String day, bool isOpeningTime) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: isOpeningTime 
-          ? _openingTimeMap[day] ?? const TimeOfDay(hour: 9, minute: 0)
-          : _closingTimeMap[day] ?? const TimeOfDay(hour: 21, minute: 0),
-    );
-
-    if (picked != null) {
-      setState(() {
-        if (isOpeningTime) {
-          _openingTimeMap[day] = picked;
-        } else {
-          _closingTimeMap[day] = picked;
-        }
-      });
     }
   }
 
@@ -110,30 +64,20 @@ class _BusinessHoursPageState extends State<BusinessHoursPage> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not found');
+      if (user == null) return;
 
-      final Map<String, Map<String, dynamic>> businessHours = {};
-
-      for (var day in _weekDays) {
-        businessHours[day] = {
-          'isOpen': _isOpenMap[day],
-          'openingTime': _openingTimeMap[day] != null 
-              ? '${_openingTimeMap[day]!.hour}:${_openingTimeMap[day]!.minute.toString().padLeft(2, '0')}'
-              : null,
-          'closingTime': _closingTimeMap[day] != null 
-              ? '${_closingTimeMap[day]!.hour}:${_closingTimeMap[day]!.minute.toString().padLeft(2, '0')}'
-              : null,
-        };
-      }
-
+      // Save to users collection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .update({'businessHours': businessHours});
+          .update({'businessHours': _businessHours});
+
+      // Sync to restaurants collection
+      await RestaurantService.updateRestaurantHours(user.uid, _businessHours);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Business hours saved successfully')),
+          const SnackBar(content: Text('Business hours updated successfully')),
         );
         Navigator.pop(context);
       }
@@ -150,11 +94,22 @@ class _BusinessHoursPageState extends State<BusinessHoursPage> {
     }
   }
 
-  String _formatTimeOfDay(TimeOfDay? time) {
-    if (time == null) return 'Not set';
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
+  Future<void> _selectTime(String day, bool isOpenTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        final time = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+        if (isOpenTime) {
+          _businessHours[day]!['openTime'] = time;
+        } else {
+          _businessHours[day]!['closeTime'] = time;
+        }
+      });
+    }
   }
 
   @override
@@ -171,51 +126,51 @@ class _BusinessHoursPageState extends State<BusinessHoursPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
+          : ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: _weekDays.length,
-              itemBuilder: (context, index) {
-                final day = _weekDays[index];
+              children: _businessHours.entries.map((entry) {
+                final day = entry.key;
+                final hours = entry.value;
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              day,
+                              day.substring(0, 1).toUpperCase() +
+                                  day.substring(1),
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Switch(
-                              value: _isOpenMap[day] ?? true,
+                              value: hours['isOpen'],
                               onChanged: (value) {
-                                setState(() => _isOpenMap[day] = value);
+                                setState(() {
+                                  _businessHours[day]!['isOpen'] = value;
+                                });
                               },
                             ),
                           ],
                         ),
-                        if (_isOpenMap[day] ?? true) ...[
+                        if (hours['isOpen']) ...[
                           const SizedBox(height: 16),
                           Row(
                             children: [
                               Expanded(
                                 child: TextFormField(
                                   readOnly: true,
+                                  onTap: () => _selectTime(day, true),
                                   decoration: const InputDecoration(
                                     labelText: 'Opening Time',
                                     border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.access_time),
                                   ),
-                                  onTap: () => _selectTime(context, day, true),
                                   controller: TextEditingController(
-                                    text: _formatTimeOfDay(_openingTimeMap[day]),
+                                    text: hours['openTime'],
                                   ),
                                 ),
                               ),
@@ -223,14 +178,13 @@ class _BusinessHoursPageState extends State<BusinessHoursPage> {
                               Expanded(
                                 child: TextFormField(
                                   readOnly: true,
+                                  onTap: () => _selectTime(day, false),
                                   decoration: const InputDecoration(
                                     labelText: 'Closing Time',
                                     border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.access_time),
                                   ),
-                                  onTap: () => _selectTime(context, day, false),
                                   controller: TextEditingController(
-                                    text: _formatTimeOfDay(_closingTimeMap[day]),
+                                    text: hours['closeTime'],
                                   ),
                                 ),
                               ),
@@ -241,7 +195,7 @@ class _BusinessHoursPageState extends State<BusinessHoursPage> {
                     ),
                   ),
                 );
-              },
+              }).toList(),
             ),
     );
   }

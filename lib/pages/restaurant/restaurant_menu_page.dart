@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/restaurant_service.dart';
 
 class RestaurantMenuPage extends StatefulWidget {
   const RestaurantMenuPage({super.key});
@@ -77,7 +78,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not found');
+      if (user == null) return;
 
       final menuItem = {
         'name': _nameController.text,
@@ -88,18 +89,40 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
+      // Add to menu_items subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('menu_items')
           .add(menuItem);
 
+      // Sync all menu items to restaurants collection
+      final updatedMenuItems = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('menu_items')
+          .get()
+          .then((snapshot) => snapshot.docs.map((doc) => {
+                'id': doc.id,
+                ...doc.data(),
+              }).toList());
+
+      await RestaurantService.updateRestaurantMenu(user.uid, updatedMenuItems);
+
+      // Clear form
+      _nameController.clear();
+      _descriptionController.clear();
+      _priceController.clear();
+      _selectedCategory = 'Main Course';
+
+      // Refresh menu items
+      await _loadMenuItems();
+
       if (mounted) {
-        Navigator.pop(context);
-        _loadMenuItems();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Menu item added successfully')),
         );
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -114,23 +137,105 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
     }
   }
 
-  Future<void> _toggleItemAvailability(String itemId, bool currentValue) async {
+  Future<void> _deleteMenuItem(String itemId) async {
+    setState(() => _isLoading = true);
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      // Delete from menu_items subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('menu_items')
           .doc(itemId)
-          .update({'isAvailable': !currentValue});
+          .delete();
 
-      _loadMenuItems();
+      // Sync remaining menu items to restaurants collection
+      final updatedMenuItems = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('menu_items')
+          .get()
+          .then((snapshot) => snapshot.docs.map((doc) => {
+                'id': doc.id,
+                ...doc.data(),
+              }).toList());
+
+      await RestaurantService.updateRestaurantMenu(user.uid, updatedMenuItems);
+
+      // Refresh menu items
+      await _loadMenuItems();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Menu item deleted successfully')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating item availability: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting menu item: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _toggleItemAvailability(String itemId, bool currentAvailability) async {
+    setState(() => _isLoading = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Update in menu_items subcollection
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('menu_items')
+          .doc(itemId)
+          .update({'isAvailable': !currentAvailability});
+
+      // Sync updated menu items to restaurants collection
+      final updatedMenuItems = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('menu_items')
+          .get()
+          .then((snapshot) => snapshot.docs.map((doc) => {
+                'id': doc.id,
+                ...doc.data(),
+              }).toList());
+
+      await RestaurantService.updateRestaurantMenu(user.uid, updatedMenuItems);
+
+      // Refresh menu items
+      await _loadMenuItems();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Item ${!currentAvailability ? 'available' : 'unavailable'}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating item availability: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

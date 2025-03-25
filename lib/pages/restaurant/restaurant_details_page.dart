@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../services/storage_service.dart';
 import 'restaurant_home_page.dart';
+import '../../services/restaurant_service.dart';
 
 class RestaurantDetailsPage extends StatefulWidget {
   final VoidCallback? onSubmitComplete;
@@ -232,10 +233,14 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
         restaurantData['image'] = _imageUrl!;
       }
 
+      // Save to users collection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .set(restaurantData, SetOptions(merge: true));
+
+      // Sync data to restaurants collection
+      await RestaurantService.syncRestaurantData(user.uid, restaurantData);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

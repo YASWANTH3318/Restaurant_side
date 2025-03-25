@@ -21,6 +21,7 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
   final List<Widget> _pages = [
     const RestaurantDashboardPage(),
     const RestaurantOrdersPage(),
+    const RestaurantMenuPage(),
     const RestaurantAnalyticsPage(),
     const RestaurantProfilePage(),
   ];
@@ -43,6 +44,12 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
         builder: (context) => const RestaurantDetailsPage(),
       ),
     );
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
@@ -70,31 +77,33 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
         ],
       ),
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _onItemTapped,
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
+            selectedIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
-            activeIcon: Icon(Icons.receipt_long),
+            selectedIcon: Icon(Icons.receipt_long),
             label: 'Orders',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
+            icon: Icon(Icons.restaurant_menu_outlined),
+            selectedIcon: Icon(Icons.restaurant_menu),
+            label: 'Menu',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.analytics_outlined),
-            activeIcon: Icon(Icons.analytics),
+            selectedIcon: Icon(Icons.analytics),
             label: 'Analytics',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
+            selectedIcon: Icon(Icons.person),
             label: 'Profile',
           ),
         ],

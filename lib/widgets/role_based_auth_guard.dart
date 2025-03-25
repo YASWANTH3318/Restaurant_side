@@ -3,8 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/login_page.dart';
 import '../pages/home_page.dart';
-import '../pages/blogger/blogger_home_page.dart';
 import '../pages/restaurant/restaurant_home_page.dart';
+import '../pages/blogger/blogger_home_page.dart';
+import '../utils/error_handler.dart';
 
 class RoleBasedAuthGuard extends StatelessWidget {
   const RoleBasedAuthGuard({super.key});
@@ -14,6 +15,7 @@ class RoleBasedAuthGuard extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        // Handle loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
@@ -21,72 +23,109 @@ class RoleBasedAuthGuard extends StatelessWidget {
             ),
           );
         }
-
-        if (!snapshot.hasData || snapshot.data == null) {
-          return const LoginPage();
+        
+        // Handle authentication state
+        if (snapshot.hasData && snapshot.data != null) {
+          // User is authenticated, check their role
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('users')
+                .doc(snapshot.data!.uid)
+                .get(),
+            builder: (context, userSnapshot) {
+              // Handle loading state for Firestore data
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+              
+              // Handle error state
+              if (userSnapshot.hasError) {
+                ErrorHandler.logError(userSnapshot.error, null);
+                return Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          ErrorHandler.getFirebaseErrorMessage(userSnapshot.error),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => FirebaseAuth.instance.signOut(),
+                          child: const Text('Sign Out'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              // Check if user data exists
+              if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+                debugPrint('User document does not exist for uid: ${snapshot.data!.uid}');
+                return const LoginPage();
+              }
+              
+              try {
+                final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                final userRole = userData['metadata']?['role'] as String?;
+                
+                debugPrint('User role from Firestore: $userRole');
+                debugPrint('User data: $userData');
+                
+                // Route to appropriate page based on role
+                if (userRole == 'customer') {
+                  debugPrint('Navigating to customer home page');
+                  return const HomePage();
+                } else if (userRole == 'restaurant') {
+                  debugPrint('Navigating to restaurant home page');
+                  return const RestaurantHomePage();
+                } else if (userRole == 'blogger') {
+                  debugPrint('Navigating to blogger home page');
+                  return const BloggerHomePage();
+                } else {
+                  // Default to customer view if role is unknown
+                  debugPrint('Unknown role: $userRole, defaulting to customer view');
+                  return const HomePage();
+                }
+              } catch (e, stackTrace) {
+                ErrorHandler.logError(e, stackTrace);
+                return Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.orange),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Error parsing user data. Please try again.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => FirebaseAuth.instance.signOut(),
+                          child: const Text('Sign Out'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            },
+          );
         }
-
-        // User is authenticated, now check their role
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('users')
-              .doc(snapshot.data!.uid)
-              .get(),
-          builder: (context, userSnapshot) {
-            if (userSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
-            }
-
-            if (userSnapshot.hasError) {
-              return Scaffold(
-                body: Center(
-                  child: Text('Error: ${userSnapshot.error}'),
-                ),
-              );
-            }
-
-            if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-              // Default to regular user if no user document exists
-              return const HomePage();
-            }
-
-            final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-            
-            // Check for role in both locations - either root level or metadata
-            String? role;
-            if (userData.containsKey('role')) {
-              role = userData['role'] as String?;
-            } else if (userData.containsKey('metadata') && 
-                       userData['metadata'] is Map<String, dynamic> &&
-                       (userData['metadata'] as Map<String, dynamic>).containsKey('role')) {
-              role = userData['metadata']['role'] as String?;
-            }
-            
-            role = role ?? 'user'; // Default to user if no role found
-            
-            print('User role from Firestore: $role');
-            print('User data: $userData');
-
-            // Route based on user role
-            switch (role) {
-              case 'blogger':
-                print('Navigating to blogger home page');
-                return const BloggerHomePage();
-              case 'restaurant':
-                print('Navigating to restaurant home page');
-                return const RestaurantHomePage();
-              case 'customer':
-              case 'user':
-              default:
-                print('Navigating to default home page');
-                return const HomePage();
-            }
-          },
-        );
+        
+        // User is not authenticated, show login page
+        return const LoginPage();
       },
     );
   }

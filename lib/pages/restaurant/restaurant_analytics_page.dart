@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../utils/date_format_util.dart';
+import 'table_booking_analytics_page.dart';
 
 class RestaurantAnalyticsPage extends StatefulWidget {
   const RestaurantAnalyticsPage({super.key});
@@ -13,35 +14,35 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   bool _isLoading = false;
   late TabController _tabController;
   
-  // Mock data - set to zero initially
-  List<double> _weeklyRevenue = [0, 0, 0, 0, 0, 0, 0];
+  // Mock data - set with sample random data
+  List<double> _weeklyRevenue = [1200.0, 1450.0, 1320.0, 1850.0, 1500.0, 2100.0, 1800.0];
   Map<String, double> _categoryRevenue = {
-    'Main Courses': 0,
-    'Appetizers': 0,
-    'Desserts': 0,
-    'Beverages': 0,
+    'Main Courses': 12800.0,
+    'Appetizers': 5600.0,
+    'Desserts': 3200.0,
+    'Beverages': 4800.0,
   };
   List<Map<String, dynamic>> _topSellingItems = [
-    {'name': 'Grilled Salmon', 'sales': 0, 'revenue': 0},
-    {'name': 'Caesar Salad', 'sales': 0, 'revenue': 0},
-    {'name': 'Chocolate Cake', 'sales': 0, 'revenue': 0},
-    {'name': 'Iced Tea', 'sales': 0, 'revenue': 0},
-    {'name': 'Burger', 'sales': 0, 'revenue': 0},
+    {'name': 'Grilled Salmon', 'sales': 48, 'revenue': 14400.0},
+    {'name': 'Caesar Salad', 'sales': 42, 'revenue': 8400.0},
+    {'name': 'Chocolate Cake', 'sales': 36, 'revenue': 7200.0},
+    {'name': 'Iced Tea', 'sales': 63, 'revenue': 3780.0},
+    {'name': 'Burger', 'sales': 39, 'revenue': 9750.0},
   ];
   List<Map<String, dynamic>> _customerTrends = [
-    {'day': 'Mon', 'new': 0, 'returning': 0},
-    {'day': 'Tue', 'new': 0, 'returning': 0},
-    {'day': 'Wed', 'new': 0, 'returning': 0},
-    {'day': 'Thu', 'new': 0, 'returning': 0},
-    {'day': 'Fri', 'new': 0, 'returning': 0},
-    {'day': 'Sat', 'new': 0, 'returning': 0},
-    {'day': 'Sun', 'new': 0, 'returning': 0},
+    {'day': 'Mon', 'new': 4, 'returning': 12},
+    {'day': 'Tue', 'new': 6, 'returning': 14},
+    {'day': 'Wed', 'new': 8, 'returning': 16},
+    {'day': 'Thu', 'new': 5, 'returning': 18},
+    {'day': 'Fri', 'new': 10, 'returning': 24},
+    {'day': 'Sat', 'new': 15, 'returning': 30},
+    {'day': 'Sun', 'new': 11, 'returning': 26},
   ];
   
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
   
   @override
@@ -65,6 +66,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
                   Tab(text: 'Menu Performance'),
                   Tab(text: 'Customer Trends'),
                   Tab(text: 'Order Analytics'),
+                  Tab(text: 'Table Bookings'),
                 ],
               ),
             ),
@@ -75,6 +77,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
                 _buildMenuPerformanceTab(),
                 _buildCustomerTrendsTab(),
                 _buildOrderAnalyticsTab(),
+                const TableBookingAnalyticsPage(),
               ],
             ),
           );
@@ -144,10 +147,10 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'Total Revenue',
-                  DateFormatUtil.formatCurrencyIndian(0),
+                  DateFormatUtil.formatCurrencyIndian(26400.0),
                   Icons.attach_money,
                   Colors.green,
-                  '+0% vs last week',
+                  '+12.5% vs last week',
                 ),
               ),
             ],
@@ -160,20 +163,20 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'Average Order',
-                  DateFormatUtil.formatCurrencyIndian(0),
+                  DateFormatUtil.formatCurrencyIndian(458.0),
                   Icons.receipt_long,
                   Colors.blue,
-                  '+0% vs last week',
+                  '+3.2% vs last week',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
                   'Orders',
-                  '0',
+                  '158',
                   Icons.shopping_cart,
                   Colors.orange,
-                  '+0% vs last week',
+                  '+8.7% vs last week',
                 ),
               ),
             ],
@@ -253,7 +256,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
                         Expanded(
                           flex: 4,
                           child: Text(
-                            item['name'],
+                            item['name'] as String,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                             ),
@@ -269,7 +272,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
                         Expanded(
                           flex: 2,
                           child: Text(
-                            DateFormatUtil.formatCurrencyIndian(item['revenue']),
+                            DateFormatUtil.formatCurrencyIndian((item['revenue'] as num).toDouble()),
                             textAlign: TextAlign.right,
                             style: TextStyle(
                               color: Theme.of(context).primaryColor,
@@ -537,7 +540,26 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
                 ),
               ],
             ),
-            child: _buildOrderTypesChart(),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _buildOrderTypesChart(),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLegendItem('Dine-in', Colors.orange),
+                      const SizedBox(height: 8),
+                      _buildLegendItem('Takeaway', Colors.blue),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           
           const SizedBox(height: 24),
@@ -603,6 +625,33 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   }
   
   Widget _buildRevenueChart() {
+    // Check if there's any non-zero revenue
+    bool hasData = _weeklyRevenue.any((revenue) => revenue > 0);
+    
+    if (!hasData) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.show_chart, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'No revenue data available yet',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Find maximum value for proper scaling
+    double maxRevenue = _weeklyRevenue.reduce((a, b) => a > b ? a : b);
+    maxRevenue = maxRevenue <= 0 ? 1000 : maxRevenue * 1.2; // Add 20% padding
+    
     return LineChart(
       LineChartData(
         gridData: const FlGridData(show: false),
@@ -635,7 +684,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
         minX: 0,
         maxX: 6,
         minY: 0,
-        maxY: 1000,
+        maxY: maxRevenue,
         lineBarsData: [
           LineChartBarData(
             spots: [
@@ -660,7 +709,28 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   Widget _buildCategoryRevenueChart() {
     final categories = _categoryRevenue.keys.toList();
     final values = _categoryRevenue.values.toList();
-    final total = values.reduce((a, b) => a + b);
+    final total = values.fold(0.0, (a, b) => a + b);
+    
+    // Handle case when all values are zero
+    if (total <= 0) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.pie_chart_outline, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'No revenue data available yet',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     
     return PieChart(
       PieChartData(
@@ -685,6 +755,30 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   }
   
   Widget _buildCustomerTrendsChart() {
+    // Check if there's any data
+    bool hasData = _customerTrends.any((day) => 
+      (day['new'] as num) > 0 || (day['returning'] as num) > 0);
+    
+    if (!hasData) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'No customer data available yet',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
@@ -700,7 +794,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               getTitlesWidget: (double value, TitleMeta meta) {
                 final index = value.toInt();
                 if (index >= 0 && index < _customerTrends.length) {
-                  return Text(_customerTrends[index]['day']);
+                  return Text(_customerTrends[index]['day'] as String);
                 }
                 return const Text('');
               },
@@ -722,25 +816,21 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
             x: index,
             barRods: [
               BarChartRodData(
-                toY: (_customerTrends[index]['new'] + _customerTrends[index]['returning']).toDouble(),
+                toY: (((_customerTrends[index]['new'] as num) + (_customerTrends[index]['returning'] as num))).toDouble(),
                 color: Colors.blue.shade800,
                 rodStackItems: [
                   BarChartRodStackItem(
                     0,
-                    _customerTrends[index]['returning'].toDouble(),
+                    (_customerTrends[index]['new'] as num).toDouble(),
                     Colors.blue.shade300,
                   ),
                   BarChartRodStackItem(
-                    _customerTrends[index]['returning'].toDouble(),
-                    (_customerTrends[index]['new'] + _customerTrends[index]['returning']).toDouble(),
-                    Colors.purple.shade300,
+                    (_customerTrends[index]['new'] as num).toDouble(),
+                    ((_customerTrends[index]['new'] as num) + (_customerTrends[index]['returning'] as num)).toDouble(),
+                    Colors.blue.shade800,
                   ),
                 ],
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(6),
-                  topRight: Radius.circular(6),
-                ),
-                width: 20,
+                borderRadius: BorderRadius.zero,
               ),
             ],
           ),
@@ -750,6 +840,29 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   }
   
   Widget _buildOrderTypesChart() {
+    // Using sample data for visualization
+    bool hasData = true; // Changed to true to show the chart
+    
+    if (!hasData) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.pie_chart_outline, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'No order type data available yet',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
     return PieChart(
       PieChartData(
         sectionsSpace: 2,
@@ -757,7 +870,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
         sections: [
           PieChartSectionData(
             color: Colors.orange,
-            value: 65,
+            value: 65.0,
             title: '65%',
             radius: 100,
             titleStyle: const TextStyle(
@@ -768,7 +881,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
           ),
           PieChartSectionData(
             color: Colors.blue,
-            value: 35,
+            value: 35.0,
             title: '35%',
             radius: 100,
             titleStyle: const TextStyle(
@@ -783,6 +896,29 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   }
   
   Widget _buildOrderTimesChart() {
+    // Using sample data for visualization
+    bool hasData = true; // Changed to true to show the chart
+    
+    if (!hasData) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'No order time data available yet',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
@@ -818,31 +954,31 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
         barGroups: [
           BarChartGroupData(
             x: 0,
-            barRods: [BarChartRodData(toY: 8, color: Colors.blue, width: 20)],
+            barRods: [BarChartRodData(toY: 8.0, color: Colors.blue, width: 20)],
           ),
           BarChartGroupData(
             x: 1,
-            barRods: [BarChartRodData(toY: 12, color: Colors.blue, width: 20)],
+            barRods: [BarChartRodData(toY: 12.0, color: Colors.blue, width: 20)],
           ),
           BarChartGroupData(
             x: 2,
-            barRods: [BarChartRodData(toY: 25, color: Colors.blue, width: 20)],
+            barRods: [BarChartRodData(toY: 25.0, color: Colors.blue, width: 20)],
           ),
           BarChartGroupData(
             x: 3,
-            barRods: [BarChartRodData(toY: 18, color: Colors.blue, width: 20)],
+            barRods: [BarChartRodData(toY: 18.0, color: Colors.blue, width: 20)],
           ),
           BarChartGroupData(
             x: 4,
-            barRods: [BarChartRodData(toY: 20, color: Colors.blue, width: 20)],
+            barRods: [BarChartRodData(toY: 20.0, color: Colors.blue, width: 20)],
           ),
           BarChartGroupData(
             x: 5,
-            barRods: [BarChartRodData(toY: 28, color: Colors.blue, width: 20)],
+            barRods: [BarChartRodData(toY: 28.0, color: Colors.blue, width: 20)],
           ),
           BarChartGroupData(
             x: 6,
-            barRods: [BarChartRodData(toY: 22, color: Colors.blue, width: 20)],
+            barRods: [BarChartRodData(toY: 22.0, color: Colors.blue, width: 20)],
           ),
         ],
       ),
@@ -866,45 +1002,56 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(icon, color: color, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(icon, color: color, size: 16),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 decoration: BoxDecoration(
                   color: trend.startsWith('+') ? Colors.green[50] : Colors.red[50],
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   trend,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: trend.startsWith('+') ? Colors.green : Colors.red,
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -940,6 +1087,43 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildTopMenuItem(String name, int sales, double revenue) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              '$sales sold',
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              DateFormatUtil.formatCurrencyIndian(revenue),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Colors.green[700],
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -1038,7 +1222,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
           ),
           const SizedBox(width: 8),
           Text(
-            rating.toString(),
+            rating.toStringAsFixed(1),
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: color,
@@ -1051,32 +1235,54 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   
   Widget _buildOrderStatusCard(String status, int count, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             status,
             style: TextStyle(
               color: Colors.grey[700],
               fontWeight: FontWeight.w500,
+              fontSize: 12,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             count.toString(),
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12),
+        ),
+      ],
     );
   }
   
