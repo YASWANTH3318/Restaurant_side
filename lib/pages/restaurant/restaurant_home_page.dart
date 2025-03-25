@@ -20,7 +20,6 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
   int _selectedIndex = 0;
   final List<Widget> _pages = [
     const RestaurantDashboardPage(),
-    const RestaurantMenuPage(),
     const RestaurantOrdersPage(),
     const RestaurantAnalyticsPage(),
     const RestaurantProfilePage(),
@@ -82,11 +81,6 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
             icon: Icon(Icons.dashboard_outlined),
             activeIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_menu_outlined),
-            activeIcon: Icon(Icons.restaurant_menu),
-            label: 'Menu',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long_outlined),
