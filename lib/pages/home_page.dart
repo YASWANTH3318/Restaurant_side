@@ -17,6 +17,7 @@ import 'user/faq_page.dart';
 import 'notifications_page.dart';
 import 'user/address_list_page.dart';
 import 'user/help_support_page.dart';
+import 'user/settings_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -932,7 +933,12 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.settings_outlined,
             title: 'Settings',
             onTap: () {
-              // TODO: Implement settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsPage(),
+                ),
+              );
             },
           ),
           _buildProfileOption(

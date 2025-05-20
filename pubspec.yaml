@@ -43,7 +43,7 @@ dependencies:
   
   # Other useful dependencies
   provider: ^6.1.1
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.2
   image_picker: ^1.1.2
   cached_network_image: ^3.3.0
   flutter_cache_manager: ^3.3.1
