@@ -7,7 +7,12 @@ import './firebase_service.dart';
 class UserService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final GoogleSignIn _googleSignIn = GoogleSignIn();
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: [
+      'email',
+      'profile',
+    ],
+  );
   static final CollectionReference _usersCollection = 
       _firestore.collection('users');
 
@@ -114,95 +119,54 @@ class UserService {
 
   static Future<GoogleSignInAccount?> getGoogleUser() async {
     try {
-      // Trigger the authentication flow without signing in
+      print('Starting Google sign-in flow...');
+      
+      // Check if there's a previously signed-in user and sign out
+      try {
+        if (_googleSignIn.currentUser != null) {
+          await _googleSignIn.signOut();
+          print('Signed out previous Google user');
+        }
+      } catch (e) {
+        print('Error signing out previous user: $e');
+        // Continue even if sign out fails
+      }
+      
+      // Trigger the authentication flow
+      print('Prompting user for Google sign-in...');
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        print('Google sign-in was cancelled by user');
+      } else {
+        print('Google sign-in successful: ${googleUser.email}');
+      }
+      
       return googleUser;
     } catch (e) {
       print('Error getting Google user: $e');
+      print('Error details: ${e.runtimeType}');
       return null;
-    }
-  }
-
-  static Future<UserCredential> signInWithEmail({
-    required String email,
-    required String password,
-    required String role,
-  }) async {
-    try {
-      // Get current user - might already be signed in from direct Firebase auth
-      User? currentUser = _auth.currentUser;
-      UserCredential? userCredential;
-      
-      if (currentUser == null) {
-        // If no current user, try to sign in
-        userCredential = await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-        currentUser = userCredential.user;
-      }
-      
-      if (currentUser == null) {
-        throw FirebaseAuthException(
-          code: 'user-not-found',
-          message: 'No user found with this email',
-        );
-      }
-
-      // Check if user document exists
-      final userDoc = await _usersCollection.doc(currentUser.uid).get();
-      
-      if (!userDoc.exists) {
-        // Create new user document if it doesn't exist
-        final newUser = UserModel(
-          id: currentUser.uid,
-          email: currentUser.email!,
-          name: currentUser.displayName ?? email.split('@')[0],
-          username: email.split('@')[0],
-          createdAt: DateTime.now(),
-          lastLoginAt: DateTime.now(),
-          isEmailVerified: currentUser.emailVerified,
-          metadata: {
-            'createdBy': 'email',
-            'accountType': 'email',
-            'role': role,
-            'createdAt': DateTime.now().toIso8601String(),
-          },
-        );
-        
-        await createUser(newUser);
-      } else {
-        // Update last login time
-        await _usersCollection.doc(currentUser.uid).update({
-          'lastLoginAt': FieldValue.serverTimestamp(),
-          'metadata.lastLoginAt': FieldValue.serverTimestamp(),
-        });
-      }
-
-      // If we don't have a UserCredential, but we have a current user,
-      // We can't create one directly, but we can return the existing one
-      // or just sign in again to get a fresh credential
-      if (userCredential == null) {
-        // Sign in again to get a credential
-        userCredential = await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      }
-
-      return userCredential;
-    } catch (e) {
-      print('Error signing in user: $e');
-      rethrow;
     }
   }
 
   static Future<UserCredential> signInWithGoogle({required String role}) async {
     try {
-      // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
+      print('Starting Google sign-in process...');
+      
+      // First make sure we're signed out from Firebase
+      try {
+        await _auth.signOut();
+      } catch (e) {
+        print('Error signing out from Firebase: $e');
+        // Continue even if sign out fails
+      }
+      
+      // Get the Google user with our helper method
+      final GoogleSignInAccount? googleUser = await getGoogleUser();
+      
       if (googleUser == null) {
+        print('Google sign-in was cancelled by user');
         throw FirebaseAuthException(
           code: 'ERROR_ABORTED_BY_USER',
           message: 'Sign in aborted by user',
@@ -210,34 +174,61 @@ class UserService {
       }
 
       try {
-        // Obtain the auth details from the request
+        print('Getting Google auth details for ${googleUser.email}');
+        
+        // Get authentication details
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        
+        print('Access Token: ${googleAuth.accessToken?.substring(0, 10)}...');
+        print('ID Token: ${googleAuth.idToken?.substring(0, 10)}...');
+        
+        if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+          print('Failed to get Google auth tokens');
+          throw FirebaseAuthException(
+            code: 'invalid-credential',
+            message: 'Unable to obtain Google authentication tokens',
+          );
+        }
 
-        // Create a new credential
+        print('Creating Firebase credential with Google tokens');
         final credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
 
-        // Sign in to Firebase with the Google credential
+        print('Signing in to Firebase with Google credential');
         final userCredential = await _auth.signInWithCredential(credential);
         
+        if (userCredential.user == null) {
+          throw FirebaseAuthException(
+            code: 'user-not-found',
+            message: 'Failed to get user after successful authentication',
+          );
+        }
+
+        print('Firebase sign-in successful: ${userCredential.user?.email}');
+        
+        // Create or update user document
         try {
-          // Check if user document exists - use a try-catch to handle potential errors
-          final userDoc = await _usersCollection.doc(userCredential.user!.uid).get();
+          final user = userCredential.user;
+          if (user == null) {
+            throw Exception('User credential is null');
+          }
+          
+          final userDoc = await _usersCollection.doc(user.uid).get();
           
           if (!userDoc.exists) {
-            // Create new user document if it doesn't exist
+            print('Creating new user document for Google user');
             final newUser = UserModel(
-              id: userCredential.user!.uid,
-              email: userCredential.user!.email!,
-              name: userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
-              username: userCredential.user!.email!.split('@')[0],
-              phoneNumber: userCredential.user!.phoneNumber,
-              profileImageUrl: userCredential.user!.photoURL,
+              id: user.uid,
+              email: user.email ?? '',
+              name: user.displayName ?? (user.email?.split('@')[0] ?? 'User'),
+              username: user.email?.split('@')[0] ?? 'user',
+              phoneNumber: user.phoneNumber,
+              profileImageUrl: user.photoURL,
               createdAt: DateTime.now(),
               lastLoginAt: DateTime.now(),
-              isEmailVerified: userCredential.user!.emailVerified,
+              isEmailVerified: user.emailVerified,
               metadata: {
                 'lastPasswordChange': DateTime.now().toIso8601String(),
                 'createdBy': 'google',
@@ -249,27 +240,90 @@ class UserService {
             
             await createUser(newUser);
           } else {
-            // Just update login time and profile data without changing role
-            await _usersCollection.doc(userCredential.user!.uid).update({
+            print('Updating existing user document for Google user');
+            await _usersCollection.doc(user.uid).update({
               'lastLoginAt': FieldValue.serverTimestamp(),
-              'isEmailVerified': userCredential.user!.emailVerified,
-              'profileImageUrl': userCredential.user!.photoURL,
-              'name': userCredential.user!.displayName,
+              'isEmailVerified': user.emailVerified,
+              'profileImageUrl': user.photoURL,
+              'name': user.displayName,
               'metadata.lastLoginAt': FieldValue.serverTimestamp(),
+              'metadata.role': role,
             });
           }
-        } catch (firestoreError) {
-          print('Error handling Firestore operations during Google sign-in: $firestoreError');
-          // Continue with authentication even if Firestore operations fail
+        } catch (e) {
+          // If we fail to update the user document, log but continue
+          print('Error updating user document: $e');
+          print('User was authenticated but document update failed');
         }
 
         return userCredential;
+        
       } catch (e) {
-        print('Error signing in with Google: $e');
+        print('Error during Google authentication: $e');
+        print('Error type: ${e.runtimeType}');
         rethrow;
       }
     } catch (e) {
       print('Error in Google sign-in process: $e');
+      print('Error type: ${e.runtimeType}');
+      rethrow;
+    }
+  }
+
+  static Future<UserCredential> signInWithEmail({
+    required String email,
+    required String password,
+    required String role,
+  }) async {
+    try {
+      // Sign in with email and password
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      if (userCredential.user == null) {
+        throw FirebaseAuthException(
+          code: 'user-not-found',
+          message: 'No user found with this email',
+        );
+      }
+
+      // Check if user document exists
+      final user = userCredential.user!;
+      final userDoc = await _usersCollection.doc(user.uid).get();
+      
+      if (!userDoc.exists) {
+        // Create new user document if it doesn't exist
+        final newUser = UserModel(
+          id: user.uid,
+          email: user.email ?? email,
+          name: user.displayName ?? email.split('@')[0],
+          username: email.split('@')[0],
+          createdAt: DateTime.now(),
+          lastLoginAt: DateTime.now(),
+          isEmailVerified: user.emailVerified,
+          metadata: {
+            'createdBy': 'email',
+            'accountType': 'email',
+            'role': role,
+            'createdAt': DateTime.now().toIso8601String(),
+          },
+        );
+        
+        await createUser(newUser);
+      } else {
+        // Update last login time and role
+        await _usersCollection.doc(user.uid).update({
+          'lastLoginAt': FieldValue.serverTimestamp(),
+          'metadata.lastLoginAt': FieldValue.serverTimestamp(),
+          'metadata.role': role,
+        });
+      }
+
+      return userCredential;
+    } catch (e) {
+      print('Error signing in user: $e');
       rethrow;
     }
   }
@@ -291,14 +345,14 @@ class UserService {
 
       // Create user in Firestore
       final user = UserModel(
-        id: userCredential.user!.uid,
+        id: userCredential.user?.uid ?? '',
         email: email,
         name: name,
         username: username,
         phoneNumber: phoneNumber,
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
-        isEmailVerified: userCredential.user!.emailVerified,
+        isEmailVerified: userCredential.user?.emailVerified ?? false,
         metadata: {
           'createdBy': 'email',
           'accountType': 'email',
@@ -323,19 +377,37 @@ class UserService {
           .where('email', isEqualTo: email)
           .get();
       
+      if (querySnapshot.docs.isEmpty) {
+        return false; // Email doesn't exist yet
+      }
+      
+      // If user exists, check their role
       for (var doc in querySnapshot.docs) {
         final userData = doc.data();
         final existingRole = userData['metadata']?['role'] as String?;
+        final roles = userData['metadata']?['roles'] as List<dynamic>?;
         
-        if (existingRole != null && existingRole != role) {
-          return true; // Email exists with a different role
+        // If role matches exactly, allow login
+        if (existingRole == role) {
+          return false;
+        }
+        
+        // If user has multiple roles, check if the requested role is in the list
+        if (roles != null && roles.contains(role)) {
+          return false;
+        }
+        
+        // If no role is set yet, allow login
+        if (existingRole == null) {
+          return false;
         }
       }
       
-      return false; // Email doesn't exist or exists with the same role
+      // Only return true if the email exists with a different role and no multiple roles
+      return true;
     } catch (e) {
       print('Error checking email with role: $e');
-      return false;
+      return false; // In case of error, allow the login
     }
   }
 

@@ -34,15 +34,23 @@ class _RestaurantProfilePageState extends State<RestaurantProfilePage> {
 
         if (mounted) {
           setState(() {
-            _restaurantData = doc.data();
+            _restaurantData = doc.exists ? doc.data() : null;
             _isLoading = false;
           });
+        }
+      } else {
+        if (mounted) {
+          setState(() => _isLoading = false);
         }
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading profile: $e')),
+          SnackBar(
+            content: Text('Error loading profile: $e'),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     }

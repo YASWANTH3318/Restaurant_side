@@ -52,7 +52,7 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        // Set default values (zeros) for a new restaurant
+        // Set default values immediately for fast loading
         setState(() {
           _restaurantName = user.displayName ?? 'Restaurant Owner';
           _totalOrders = 0;
@@ -62,20 +62,35 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
           _isLoading = false;
         });
         
-        // In a real app, you would fetch this data from Firestore
-        // final userDoc = await _firestore.collection('users').doc(user.uid).get();
-        // if (userDoc.exists) {
-        //   setState(() {
-        //     _restaurantName = userDoc.data()?['restaurantName'] ?? 'Restaurant Owner';
-        //     _isLoading = false;
-        //   });
-        // }
+        // Try to load real data in background (non-blocking)
+        _loadRealDataInBackground(user.uid);
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
       print('Error loading restaurant data: $e');
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadRealDataInBackground(String uid) async {
+    try {
+      // Load real data without blocking UI
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      if (userDoc.exists && mounted) {
+        final data = userDoc.data();
+        setState(() {
+          _restaurantName = data?['name'] ?? data?['restaurantName'] ?? 'Restaurant Owner';
+          // You can add more real data loading here
+        });
+      }
+    } catch (e) {
+      print('Error loading real restaurant data: $e');
+      // Don't show error to user, just use defaults
     }
   }
 

@@ -22,7 +22,9 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
     return _isLoading 
       ? const Center(child: CircularProgressIndicator()) 
       : FutureBuilder(
-          future: UserService.getUserData(FirebaseAuth.instance.currentUser!.uid),
+          future: FirebaseAuth.instance.currentUser != null 
+              ? UserService.getUserData(FirebaseAuth.instance.currentUser!.uid)
+              : Future.value(null),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -57,10 +59,11 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
 
             if (!snapshot.hasData || !snapshot.data!.exists) {
               // Create a basic profile if user document doesn't exist
+              final currentUser = FirebaseAuth.instance.currentUser;
               final newUser = {
-                'name': FirebaseAuth.instance.currentUser!.displayName ?? 'Blogger',
-                'email': FirebaseAuth.instance.currentUser!.email,
-                'photoURL': FirebaseAuth.instance.currentUser!.photoURL,
+                'name': currentUser?.displayName ?? 'Blogger',
+                'email': currentUser?.email ?? '',
+                'photoURL': currentUser?.photoURL,
               };
 
               return _buildProfileContent(newUser);

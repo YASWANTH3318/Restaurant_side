@@ -35,7 +35,9 @@ class BlogService {
     final doc = await _bloggersCollection.doc(id).get();
     if (!doc.exists) return null;
     
-    final data = doc.data()!;
+    final data = doc.data();
+    if (data == null) return null;
+    
     // Ensure arrays are never null
     if (data['followers'] == null) data['followers'] = [];
     if (data['following'] == null) data['following'] = [];
@@ -104,7 +106,9 @@ class BlogService {
     final userDoc = await _bloggersCollection.doc(userId).get();
     if (!userDoc.exists) return [];
 
-    final userData = userDoc.data()!;
+    final userData = userDoc.data();
+    if (userData == null) return [];
+    
     // Ensure following is not null
     if (userData['following'] == null) {
       userData['following'] = [];

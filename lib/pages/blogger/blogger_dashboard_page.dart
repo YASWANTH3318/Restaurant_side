@@ -33,9 +33,11 @@ class _BloggerDashboardPageState extends State<BloggerDashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       FutureBuilder(
-                        future: UserService.getUserData(FirebaseAuth.instance.currentUser!.uid),
+                        future: FirebaseAuth.instance.currentUser != null 
+                            ? UserService.getUserData(FirebaseAuth.instance.currentUser!.uid)
+                            : Future.value(null),
                         builder: (context, snapshot) {
-                          if (snapshot.hasData) {
+                          if (snapshot.hasData && snapshot.data != null) {
                             final userData = snapshot.data!.data() as Map<String, dynamic>?;
                             return Text(
                               'Welcome back, ${userData?['name'] ?? 'Blogger'}! 👋',

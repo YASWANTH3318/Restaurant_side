@@ -11,11 +11,11 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _nameController = TextEditingController();
-  final _usernameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController(text: '99220041339@klu.ac.in');
+  final _passwordController = TextEditingController(text: '99220041339');
+  final _nameController = TextEditingController(text: 'Test User');
+  final _usernameController = TextEditingController(text: 'testuser');
+  final _phoneController = TextEditingController(text: '99220041339');
   bool _isLoading = false;
   String? _errorMessage;
   String _selectedRole = 'customer'; // Default role

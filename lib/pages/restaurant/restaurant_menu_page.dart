@@ -44,30 +44,42 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
   Future<void> _loadMenuItems() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('menu_items')
+          .limit(50) // Limit results for better performance
           .get();
 
-      setState(() {
-        _menuItems = snapshot.docs
-            .map((doc) => {
+      if (mounted) {
+        setState(() {
+          _menuItems = snapshot.docs
+              .map((doc) {
+                final data = doc.data();
+                return <String, dynamic>{
                   'id': doc.id,
-                  ...doc.data(),
-                })
-            .toList();
-        _isLoading = false;
-      });
+                  ...?data,
+                };
+              })
+              .toList();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading menu items: $e')),
+          SnackBar(
+            content: Text('Error loading menu items: $e'),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
-      setState(() => _isLoading = false);
     }
   }
 

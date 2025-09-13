@@ -39,34 +39,55 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      // Load food orders using server-side query
-      final foodOrdersSnapshot = await FirebaseFirestore.instance
-          .collection('food_orders')
-          .where('restaurantId', isEqualTo: user.uid)
-          .where('status', isEqualTo: _selectedFoodOrderStatus)
-          .orderBy('orderTime', descending: true)
-          .get();
-
-      // Load table reservations using server-side query
-      final tableReservationsSnapshot = await FirebaseFirestore.instance
-          .collection('table_reservations')
-          .where('restaurantId', isEqualTo: user.uid)
-          .orderBy('reservationTime', descending: true)
-          .get();
-
-      setState(() {
-        _foodOrders = foodOrdersSnapshot.docs
-            .map((doc) => {'id': doc.id, ...doc.data()})
-            .toList();
+      // Load data in parallel for better performance
+      final futures = await Future.wait([
+        // Load food orders using server-side query
+        FirebaseFirestore.instance
+            .collection('food_orders')
+            .where('restaurantId', isEqualTo: user.uid)
+            .where('status', isEqualTo: _selectedFoodOrderStatus)
+            .orderBy('orderTime', descending: true)
+            .limit(50) // Limit results for better performance
+            .get(),
         
-        _tableReservations = tableReservationsSnapshot.docs
-            .map((doc) => {'id': doc.id, ...doc.data()})
-            .toList();
-      });
+        // Load table reservations using server-side query
+        FirebaseFirestore.instance
+            .collection('table_reservations')
+            .where('restaurantId', isEqualTo: user.uid)
+            .orderBy('reservationTime', descending: true)
+            .limit(50) // Limit results for better performance
+            .get(),
+      ]);
+
+      final foodOrdersSnapshot = futures[0] as QuerySnapshot;
+      final tableReservationsSnapshot = futures[1] as QuerySnapshot;
+
+      if (mounted) {
+        setState(() {
+          _foodOrders = foodOrdersSnapshot.docs
+              .map((doc) {
+                final data = doc.data() as Map<String, dynamic>?;
+                return <String, dynamic>{'id': doc.id, ...?data};
+              })
+              .toList();
+          
+          _tableReservations = tableReservationsSnapshot.docs
+              .map((doc) {
+                final data = doc.data() as Map<String, dynamic>?;
+                return <String, dynamic>{'id': doc.id, ...?data};
+              })
+              .toList();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading orders: $e'),
@@ -74,8 +95,6 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
           ),
         );
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 

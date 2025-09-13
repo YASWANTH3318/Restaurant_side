@@ -13,13 +13,13 @@ class CreatePostPage extends StatefulWidget {
 
 class _CreatePostPageState extends State<CreatePostPage> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _contentController = TextEditingController();
+  final _titleController = TextEditingController(text: 'Amazing Food Experience');
+  final _contentController = TextEditingController(text: 'Today I had an incredible dining experience at this wonderful restaurant. The food was absolutely delicious and the service was outstanding. I highly recommend trying their signature dishes!');
   final _picker = ImagePicker();
-  
+
   bool _isLoading = false;
   File? _selectedImage;
-  List<String> _tags = [];
+  List<String> _tags = ['Food', 'Restaurant', 'Review'];
   String _newTag = '';
 
   Future<void> _pickImage() async {

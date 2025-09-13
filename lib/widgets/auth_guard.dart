@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../pages/login_page.dart';
+import '../pages/direct_access_page.dart';
 
 class AuthGuard extends StatelessWidget {
   final Widget child;
@@ -24,7 +24,7 @@ class AuthGuard extends StatelessWidget {
         }
 
         if (!snapshot.hasData || snapshot.data == null) {
-          return const LoginPage();
+          return const DirectAccessPage();
         }
 
         return child;

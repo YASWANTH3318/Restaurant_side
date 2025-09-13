@@ -180,7 +180,7 @@ class _HomePageState extends State<HomePage> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          _buildHomeTab(user!),
+          _buildHomeTab(user),
           _buildSearchTab(),
           const BlogPage(),
           _buildOrdersTab(),
@@ -269,7 +269,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHomeTab(User user) {
+  Widget _buildHomeTab(User? user) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -281,7 +281,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(_error ?? 'Unknown error', style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadRestaurants,
@@ -305,19 +305,19 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   FutureBuilder(
-                    future: UserService.getUserData(user.uid),
+                    future: user != null ? UserService.getUserData(user.uid) : Future.value(null),
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
-                        final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                        final userData = snapshot.data?.data() as Map<String, dynamic>?;
                         return Text(
-                          'Hello, ${userData?['name'] ?? 'User'}! 👋',
+                          'Hello, ${userData?['name'] ?? 'Customer'}! 👋',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
                         );
                       }
-                      return const Text('Hello! 👋');
+                      return const Text('Hello, Customer! 👋');
                     },
                   ),
                   // const SizedBox(height: 16),
@@ -485,7 +485,27 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildOrdersTab() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Center(child: Text('Please sign in to view orders'));
+    if (user == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.restaurant_menu, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No orders yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Your orders will appear here when you make reservations',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
 
     return FutureBuilder<List<Reservation>>(
       future: ReservationService.getUserReservations(user.uid),
@@ -734,9 +754,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildProfileTab(User user) {
+  Widget _buildProfileTab(User? user) {
     return FutureBuilder(
-      future: UserService.getUserData(user.uid),
+      future: user != null ? UserService.getUserData(user.uid) : Future.value(null),
       builder: (context, AsyncSnapshot<dynamic> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -770,35 +790,18 @@ class _HomePageState extends State<HomePage> {
           );
         }
 
-        if (!snapshot.hasData || !snapshot.data.exists) {
-          // Create a basic profile if user document doesn't exist
-          final newUser = UserModel(
-            id: user.uid,
-            email: user.email ?? 'No email',
-            name: user.displayName ?? user.email?.split('@')[0] ?? 'User',
-            username: user.email?.split('@')[0] ?? 'user',
-            profileImageUrl: user.photoURL,
-            createdAt: DateTime.now(),
-            lastLoginAt: DateTime.now(),
-            isEmailVerified: user.emailVerified,
-            metadata: {
-              'createdBy': 'app',
-              'accountType': user.providerData.first.providerId,
-              'role': 'user',
-            },
-          );
+        if (!snapshot.hasData || !snapshot.data.exists || user == null) {
+          // Create a basic profile for direct access mode
+          final defaultProfile = {
+            'name': 'Customer',
+            'email': 'customer@greedybites.com',
+            'photoURL': null,
+          };
 
-          // Create the user document
-          UserService.createUser(newUser);
-
-          return _buildProfileContent({
-            'name': newUser.name,
-            'email': newUser.email,
-            'photoURL': newUser.profileImageUrl,
-          });
+          return _buildProfileContent(defaultProfile);
         }
 
-        final userData = snapshot.data.data() as Map<String, dynamic>;
+        final userData = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         return _buildProfileContent(userData);
       },
     );
@@ -820,7 +823,7 @@ class _HomePageState extends State<HomePage> {
                 : null,
             child: userData['profileImageUrl'] == null
                 ? Text(
-                    (userData['name'] as String).substring(0, 1).toUpperCase(),
+                    (userData['name'] as String? ?? 'U').substring(0, 1).toUpperCase(),
                     style: const TextStyle(fontSize: 40),
                   )
                 : null,
@@ -1202,10 +1205,10 @@ class FeaturedRestaurantCard extends StatelessWidget {
                     FutureBuilder<ReviewStats>(
                       future: ReviewService.getReviewStats(restaurant.id),
                       builder: (context, snapshot) {
-                        final rating = snapshot.hasData && snapshot.data!.averageRating > 0
+                        final rating = snapshot.hasData && snapshot.data?.averageRating != null && snapshot.data!.averageRating > 0
                             ? snapshot.data!.averageRating
                             : restaurant.rating;
-                        final reviewCount = snapshot.hasData ? snapshot.data!.totalReviews : 0;
+                        final reviewCount = snapshot.hasData ? (snapshot.data?.totalReviews ?? 0) : 0;
                         
                         return Row(
                       children: [
@@ -1290,10 +1293,10 @@ class RestaurantCard extends StatelessWidget {
                     FutureBuilder<ReviewStats>(
                       future: ReviewService.getReviewStats(restaurant.id),
                       builder: (context, snapshot) {
-                        final rating = snapshot.hasData && snapshot.data!.averageRating > 0
+                        final rating = snapshot.hasData && snapshot.data?.averageRating != null && snapshot.data!.averageRating > 0
                             ? snapshot.data!.averageRating
                             : restaurant.rating;
-                        final reviewCount = snapshot.hasData ? snapshot.data!.totalReviews : 0;
+                        final reviewCount = snapshot.hasData ? (snapshot.data?.totalReviews ?? 0) : 0;
                         
                         return Row(
                       children: [

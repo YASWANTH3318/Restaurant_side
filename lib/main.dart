@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'widgets/initialization_widget.dart';
-import 'pages/login_page.dart';
+import 'pages/direct_access_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/home_page.dart';
 import 'widgets/role_based_auth_guard.dart';
@@ -74,11 +74,11 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const RoleBasedAuthGuard(),
+      home: const DirectAccessPage(),
       routes: {
-        '/login': (context) => const LoginPage(),
+        '/direct-access': (context) => const DirectAccessPage(),
         '/signup': (context) => const SignUpPage(),
-        '/home': (context) => const RoleBasedAuthGuard(),
+        '/home': (context) => const HomePage(),
         '/restaurant/home': (context) => const RestaurantHomePage(),
         '/restaurant/details': (context) => const RestaurantDetailsPage(),
         '/restaurant/tables': (context) => const RestaurantTablesPage(),

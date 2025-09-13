@@ -13,8 +13,8 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _emailController = TextEditingController(text: '99220041339@klu.ac.in');
+  final _passwordController = TextEditingController(text: '99220041339');
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   String? _errorMessage;
@@ -31,6 +31,10 @@ class _LoginPageState extends State<LoginPage> {
     try {
       // Get Google user
       final googleUser = await UserService.getGoogleUser();
+      
+      // Debug output
+      print('Google Sign-In Status: ${googleUser != null ? 'User selected' : 'Cancelled'}');
+      
       if (googleUser == null) {
         setState(() {
           _isLoading = false;
@@ -39,7 +43,46 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       
-      // Proceed with sign-in directly
+      print('Google Sign-In Email: ${googleUser.email}');
+      
+      // Check if this email is already used with a different role
+      final bool emailUsedWithDifferentRole = await UserService.isEmailUsedWithRole(googleUser.email, _selectedRole);
+      if (emailUsedWithDifferentRole) {
+        // Show a dialog to confirm role change
+        if (!mounted) return;
+        
+        final bool? confirm = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Account Exists'),
+              content: const Text(
+                'This email is already registered with a different role. Would you like to add this role to your account?',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+                TextButton(
+                  child: const Text('Add Role'),
+                  onPressed: () => Navigator.of(context).pop(true),
+                ),
+              ],
+            );
+          },
+        );
+        
+        if (confirm != true) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Sign-in cancelled.';
+          });
+          return;
+        }
+      }
+      
+      // Proceed with sign-in
       final userCredential = await UserService.signInWithGoogle(role: _selectedRole);
       
       if (!mounted) return;
@@ -65,8 +108,28 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         if (e.toString().contains('account-exists-with-different-credential')) {
           _errorMessage = 'This email is already used with a different sign-in method. Try another login method.';
+        } else if (e.toString().contains('ERROR_ABORTED_BY_USER')) {
+          _errorMessage = 'Google sign-in was cancelled by user.';
+        } else if (e.toString().contains('network_error')) {
+          _errorMessage = 'Network error. Please check your internet connection.';
+        } else if (e.toString().contains('invalid-credential')) {
+          _errorMessage = 'Unable to authenticate with Google. Please try again.';
+        } else if (e.toString().contains('user-disabled')) {
+          _errorMessage = 'This account has been disabled. Please contact support.';
+        } else if (e.toString().contains('operation-not-allowed')) {
+          _errorMessage = 'Google Sign-In is not enabled. Please contact support.';
+        } else if (e.toString().contains('popup_closed_by_user')) {
+          _errorMessage = 'Sign-in popup was closed. Please try again.';
+        } else if (e.toString().contains('popup_blocked_by_browser')) {
+          _errorMessage = 'Sign-in popup was blocked. Please allow popups and try again.';
+        } else if (e.toString().contains('sign_in_failed')) {
+          _errorMessage = 'Google Sign-In failed. Please try again.';
+        } else if (e.toString().contains('sign_in_canceled')) {
+          _errorMessage = 'Google Sign-In was canceled. Please try again.';
+        } else if (e.toString().contains('sign_in_required')) {
+          _errorMessage = 'Please sign in to continue.';
         } else {
-          _errorMessage = 'Failed to sign in. Please try again.';
+          _errorMessage = 'Failed to sign in: ${e.toString()}';
         }
         _isLoading = false;
       });
@@ -249,6 +312,69 @@ class _LoginPageState extends State<LoginPage> {
                         _selectedRole = newSelection.first;
                       });
                     },
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  // Quick login buttons for each role
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : () {
+                            setState(() {
+                              _selectedRole = 'customer';
+                              _emailController.text = '99220041339@klu.ac.in';
+                              _passwordController.text = '99220041339';
+                            });
+                            _handleLogin();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          child: const Text('Quick Login\nCustomer', textAlign: TextAlign.center),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : () {
+                            setState(() {
+                              _selectedRole = 'blogger';
+                              _emailController.text = '99220041339@klu.ac.in';
+                              _passwordController.text = '99220041339';
+                            });
+                            _handleLogin();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          child: const Text('Quick Login\nBlogger', textAlign: TextAlign.center),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : () {
+                            setState(() {
+                              _selectedRole = 'restaurant';
+                              _emailController.text = '99220041339@klu.ac.in';
+                              _passwordController.text = '99220041339';
+                            });
+                            _handleLogin();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          child: const Text('Quick Login\nRestaurant', textAlign: TextAlign.center),
+                        ),
+                      ),
+                    ],
                   ),
                   
                   const SizedBox(height: 24),

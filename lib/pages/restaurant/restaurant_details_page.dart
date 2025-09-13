@@ -28,23 +28,23 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
   String? _imageUrl;
 
   // Basic Info Controllers
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _ownerNameController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController(text: 'Test Restaurant');
+  final TextEditingController _ownerNameController = TextEditingController(text: 'Test Owner');
+  final TextEditingController _descriptionController = TextEditingController(text: 'A delicious restaurant serving amazing food');
+  final TextEditingController _phoneController = TextEditingController(text: '99220041339');
+  final TextEditingController _emailController = TextEditingController(text: '99220041339@klu.ac.in');
 
   // Address Controllers
-  final TextEditingController _shopNoController = TextEditingController();
-  final TextEditingController _landmarkController = TextEditingController();
-  final TextEditingController _colonyController = TextEditingController();
-  final TextEditingController _cityController = TextEditingController();
-  final TextEditingController _stateController = TextEditingController();
-  final TextEditingController _pincodeController = TextEditingController();
+  final TextEditingController _shopNoController = TextEditingController(text: '123');
+  final TextEditingController _landmarkController = TextEditingController(text: 'Near KLU');
+  final TextEditingController _colonyController = TextEditingController(text: 'KLU Colony');
+  final TextEditingController _cityController = TextEditingController(text: 'Vijayawada');
+  final TextEditingController _stateController = TextEditingController(text: 'Andhra Pradesh');
+  final TextEditingController _pincodeController = TextEditingController(text: '520002');
 
   // Timing Controllers
-  final TextEditingController _openingTimeController = TextEditingController();
-  final TextEditingController _closingTimeController = TextEditingController();
+  final TextEditingController _openingTimeController = TextEditingController(text: '09:00');
+  final TextEditingController _closingTimeController = TextEditingController(text: '22:00');
 
   List<String> _selectedCuisineTypes = [];
   final List<String> _availableCuisineTypes = [
