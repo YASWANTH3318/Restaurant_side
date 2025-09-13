@@ -15,39 +15,41 @@ import 'pages/blogger/blogger_home_page.dart';
 import 'dart:async';
 
 Future<void> main() async {
-  // Ensure Flutter is initialized
-  WidgetsFlutterBinding.ensureInitialized();
-  
   // Capture Firebase initialization errors
-  await runZonedGuarded(() async {
-    // Set preferred orientations
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
-    
-    // Initialize Firebase with error handling
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      
-      // Initialize Firebase App Check with debug provider
-      await FirebaseAppCheck.instance.activate(
-        androidProvider: AndroidProvider.debug,
-      );
-      
-      // Disable verbose debug logs from Firebase
-      FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
-    } catch (e) {
-      debugPrint('Firebase initialization error: $e');
-    }
-    
-    runApp(const MyApp());
-  }, (error, stackTrace) {
-    debugPrint('Caught error in main: $error');
-    debugPrint(stackTrace.toString());
-  });
+  await runZonedGuarded(
+    () async {
+      // Ensure Flutter is initialized
+      WidgetsFlutterBinding.ensureInitialized();
+      // Set preferred orientations
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+
+      // Initialize Firebase with error handling
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+
+        // Initialize Firebase App Check with debug provider
+        await FirebaseAppCheck.instance.activate(
+          androidProvider: AndroidProvider.debug,
+        );
+
+        // Disable verbose debug logs from Firebase
+        FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+      } catch (e) {
+        debugPrint('Firebase initialization error: $e');
+      }
+
+      runApp(const MyApp());
+    },
+    (error, stackTrace) {
+      debugPrint('Caught error in main: $error');
+      debugPrint(stackTrace.toString());
+    },
+  );
 }
 
 class MyApp extends StatelessWidget {

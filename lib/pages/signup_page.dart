@@ -21,6 +21,7 @@ class _SignUpPageState extends State<SignUpPage> {
   String _selectedRole = 'customer'; // Default role
 
   Future<void> _handleSignUp() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
@@ -29,16 +30,15 @@ class _SignUpPageState extends State<SignUpPage> {
 
       try {
         final email = _emailController.text.trim();
-        
+
         // Check if email is already used with a different role
-        final isEmailUsedWithDifferentRole = await UserService.isEmailUsedWithRole(
-          email, 
-          _selectedRole
-        );
-        
+        final isEmailUsedWithDifferentRole =
+            await UserService.isEmailUsedWithRole(email, _selectedRole);
+
         if (isEmailUsedWithDifferentRole) {
           setState(() {
-            _errorMessage = 'This email is already registered with a different role. Please use a different email.';
+            _errorMessage =
+                'This email is already registered with a different role. Please use a different email.';
             _isLoading = false;
           });
           return;
@@ -71,7 +71,7 @@ class _SignUpPageState extends State<SignUpPage> {
           if (_selectedRole == 'restaurant') {
             // For restaurants, navigate to restaurant details page for additional info
             Navigator.pushReplacementNamed(context, '/restaurant/home');
-            
+
             // Show a dialog asking to complete the restaurant profile
             Future.delayed(const Duration(milliseconds: 500), () {
               showDialog(
@@ -81,7 +81,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   return AlertDialog(
                     title: const Text('Complete Your Restaurant Profile'),
                     content: const Text(
-                      'Please complete your restaurant profile to make it visible to customers. Would you like to do this now?'
+                      'Please complete your restaurant profile to make it visible to customers. Would you like to do this now?',
                     ),
                     actions: [
                       TextButton(
@@ -138,9 +138,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign Up'),
-      ),
+      appBar: AppBar(title: const Text('Sign Up')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -154,22 +152,16 @@ class _SignUpPageState extends State<SignUpPage> {
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
                       textAlign: TextAlign.center,
                     ),
                   ),
                 const Text(
                   'Select Your Role',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Role selection segment
                 SegmentedButton<String>(
                   segments: const [
@@ -288,19 +280,22 @@ class _SignUpPageState extends State<SignUpPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : Text(
+                            'Sign Up as ${_selectedRole.substring(0, 1).toUpperCase() + _selectedRole.substring(1)}',
+                            style: const TextStyle(fontSize: 16),
                           ),
-                        )
-                      : Text(
-                          'Sign Up as ${_selectedRole.substring(0, 1).toUpperCase() + _selectedRole.substring(1)}',
-                          style: const TextStyle(fontSize: 16),
-                        ),
                 ),
                 const SizedBox(height: 16),
                 TextButton(
@@ -316,4 +311,4 @@ class _SignUpPageState extends State<SignUpPage> {
       ),
     );
   }
-} 
+}

@@ -49,8 +49,8 @@ android {
 
     defaultConfig {
         applicationId "com.company.greedybites"
-        minSdkVersion 21
-        targetSdkVersion 34
+        minSdkVersion 23
+        targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true

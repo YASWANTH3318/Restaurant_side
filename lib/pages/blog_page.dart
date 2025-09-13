@@ -15,7 +15,8 @@ class BlogPage extends StatefulWidget {
   State<BlogPage> createState() => _BlogPageState();
 }
 
-class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin {
+class _BlogPageState extends State<BlogPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Blogger> _bloggers = [];
   List<BlogPost> _feedPosts = [];
@@ -48,19 +49,19 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
       // Get bloggers regardless of auth state
       final bloggers = await BlogService.getPopularBloggers();
       final reels = await BlogService.getReels();
-      
+
       // Get recent posts for all users - not just followed bloggers
       List<BlogPost> recentPosts = await BlogService.getAllRecentPosts();
-      
+
       // If user is authenticated, also get personalized feed posts
       List<BlogPost> personalizedPosts = [];
       if (user != null) {
         personalizedPosts = await BlogService.getFeedPosts(user.uid);
-        
+
         // Merge with recent posts and remove duplicates
         final allPostIds = <String>{};
         final allPosts = <BlogPost>[];
-        
+
         // Add personalized posts first (higher priority)
         for (final post in personalizedPosts) {
           if (!allPostIds.contains(post.id)) {
@@ -68,7 +69,7 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
             allPosts.add(post);
           }
         }
-        
+
         // Then add recent posts that aren't duplicates
         for (final post in recentPosts) {
           if (!allPostIds.contains(post.id)) {
@@ -76,7 +77,7 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
             allPosts.add(post);
           }
         }
-        
+
         // Sort by creation date (newest first)
         allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         recentPosts = allPosts;
@@ -172,9 +173,9 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
       // Get the blogger data
       final blogger = await BlogService.getBlogger(bloggerId);
       if (blogger == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Blogger not found')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Blogger not found')));
         return;
       }
 
@@ -183,25 +184,25 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
       if (isFollowing) {
         await BlogService.unfollowBlogger(bloggerId, user.uid);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Unfollowed $bloggerName')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Unfollowed $bloggerName')));
         }
       } else {
         await BlogService.followBlogger(bloggerId, user.uid);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Following $bloggerName')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Following $bloggerName')));
         }
       }
 
       await _loadData(); // Refresh data
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -213,35 +214,30 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
         title: const Text('Food Blog'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Explore'),
-            Tab(text: 'Reels'),
-          ],
+          tabs: const [Tab(text: 'Explore'), Tab(text: 'Reels')],
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadData,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : TabBarView(
-                  controller: _tabController,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildExploreTab(),
-                    _buildReelsTab(),
+                    Text(_error!, style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadData,
+                      child: const Text('Retry'),
+                    ),
                   ],
                 ),
+              )
+              : TabBarView(
+                controller: _tabController,
+                children: [_buildExploreTab(), _buildReelsTab()],
+              ),
     );
   }
 
@@ -261,10 +257,7 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
           ],
         ),
       );
@@ -275,11 +268,7 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.person_search,
-              size: 64,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.person_search, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
               'No bloggers found',
@@ -292,9 +281,7 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
             const SizedBox(height: 8),
             Text(
               'Be the first to start sharing your food journey!',
-              style: TextStyle(
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -365,19 +352,19 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
     final isFollowing = user != null && blogger.followers.contains(user.uid);
 
     return Card(
+      color: Colors.white,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => BloggerProfilePage(
-                bloggerId: blogger.id,
-                bloggerName: blogger.name,
-              ),
+              builder:
+                  (context) => BloggerProfilePage(
+                    bloggerId: blogger.id,
+                    bloggerName: blogger.name,
+                  ),
             ),
           ).then((_) => _loadData());
         },
@@ -389,25 +376,32 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
               children: [
                 SizedBox(
                   height: 80,
-                  child: blogger.coverImageUrl != null
-                      ? Image.network(
-                          blogger.coverImageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: Theme.of(context).primaryColor.withOpacity(0.2),
+                  width: double.infinity,
+                  child:
+                      blogger.coverImageUrl != null
+                          ? Image.network(
+                            blogger.coverImageUrl!,
+                            fit: BoxFit.fill,
+                            errorBuilder:
+                                (context, error, stackTrace) => Container(
+                                  color: Theme.of(
+                                    context,
+                                  ).primaryColor.withOpacity(0.2),
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    color: Colors.white.withOpacity(0.5),
+                                  ),
+                                ),
+                          )
+                          : Container(
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withOpacity(0.2),
                             child: Icon(
-                              Icons.image_not_supported,
+                              Icons.restaurant,
                               color: Colors.white.withOpacity(0.5),
                             ),
                           ),
-                        )
-                      : Container(
-                          color: Theme.of(context).primaryColor.withOpacity(0.2),
-                          child: Icon(
-                            Icons.restaurant,
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                        ),
                 ),
                 // Follow Button
                 if (user != null)
@@ -425,9 +419,10 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: isFollowing
-                                ? Colors.white.withOpacity(0.9)
-                                : Theme.of(context).primaryColor,
+                            color:
+                                isFollowing
+                                    ? Colors.white.withOpacity(0.9)
+                                    : Theme.of(context).primaryColor,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -436,18 +431,20 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                               Icon(
                                 isFollowing ? Icons.check : Icons.add,
                                 size: 16,
-                                color: isFollowing
-                                    ? Theme.of(context).primaryColor
-                                    : Colors.white,
+                                color:
+                                    isFollowing
+                                        ? Theme.of(context).primaryColor
+                                        : Colors.white,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 isFollowing ? 'Following' : 'Follow',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isFollowing
-                                      ? Theme.of(context).primaryColor
-                                      : Colors.white,
+                                  color:
+                                      isFollowing
+                                          ? Theme.of(context).primaryColor
+                                          : Colors.white,
                                 ),
                               ),
                             ],
@@ -461,94 +458,95 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
 
             // Profile Info
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Profile Picture
-                    CircleAvatar(
-                      radius: 32,
-                      backgroundImage: blogger.profileImageUrl != null
-                          ? NetworkImage(blogger.profileImageUrl!)
-                          : null,
-                      backgroundColor: Colors.grey[200],
-                      child: blogger.profileImageUrl == null
-                          ? Text(
-                              blogger.name.isNotEmpty
-                                  ? blogger.name[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Name
-                    Text(
-                      blogger.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Profile Picture
+                      /* CircleAvatar(
+                        radius: 32,
+                        backgroundImage:
+                            blogger.profileImageUrl != null
+                                ? NetworkImage(blogger.profileImageUrl!)
+                                : null,
+                        backgroundColor: Colors.grey[200],
+                        child:
+                            blogger.profileImageUrl == null
+                                ? Text(
+                                  blogger.name.isNotEmpty
+                                      ? blogger.name[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                                : null,
                       ),
-                    ),
-                    const SizedBox(height: 2),
+                      const SizedBox(height: 8), */
 
-                    // Username
-                    Text(
-                      '@${blogger.username}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-
-                    // Bio
-                    if (blogger.bio?.isNotEmpty == true) ...[
-                      const SizedBox(height: 4),
+                      // Name
                       Text(
-                        blogger.bio!,
-                        maxLines: 2,
+                        blogger.name,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                    ],
+                      const SizedBox(height: 2),
 
-                    // Stats
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildStatChip(
-                          icon: Icons.article,
-                          count: blogger.stats['posts'] ?? 0,
-                          label: 'Posts',
-                        ),
-                        _buildStatChip(
-                          icon: Icons.video_library,
-                          count: blogger.stats['reels'] ?? 0,
-                          label: 'Reels',
-                        ),
-                        _buildStatChip(
-                          icon: Icons.people,
-                          count: blogger.followers.length,
-                          label: 'Followers',
+                      // Username
+                      Text(
+                        '@${blogger.username}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+
+                      // Bio
+                      if (blogger.bio?.isNotEmpty == true) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          blogger.bio!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
                         ),
                       ],
-                    ),
-                  ],
+
+                      // Stats
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildStatChip(
+                            icon: Icons.article,
+                            count: blogger.stats['posts'] ?? 0,
+                            label: 'Posts',
+                          ),
+                          _buildStatChip(
+                            icon: Icons.video_library,
+                            count: blogger.stats['reels'] ?? 0,
+                            label: 'Reels',
+                          ),
+                          _buildStatChip(
+                            icon: Icons.people,
+                            count: blogger.followers.length,
+                            label: 'Followers',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -570,42 +568,35 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
         const SizedBox(height: 2),
         Text(
           count.toString(),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 10,
-          ),
-        ),
+        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 10)),
       ],
     );
   }
 
   Widget _buildReelsTab() {
     // Create placeholder reels if none exist
-    final reelsToShow = _reels.isEmpty
-        ? List.generate(
-            5,
-            (index) => Reel(
-              id: 'placeholder_$index',
-              userId: 'user_$index',
-              userName: 'Food Blogger ${index + 1}',
-              userImage: 'https://picsum.photos/200?random=$index',
-              videoUrl: 'https://example.com/video$index.mp4',
-              thumbnailUrl: 'https://picsum.photos/400/600?random=$index',
-              description: 'Delicious food reel #${index + 1}\n#foodie #cooking #delicious',
-              createdAt: DateTime.now().subtract(Duration(days: index)),
-              likes: [],
-              tags: ['food', 'delicious', 'cooking'],
-              metadata: {'type': 'reel'},
-            ),
-          )
-        : _reels;
+    final reelsToShow =
+        _reels.isEmpty
+            ? List.generate(
+              5,
+              (index) => Reel(
+                id: 'placeholder_$index',
+                userId: 'user_$index',
+                userName: 'Food Blogger ${index + 1}',
+                userImage: 'https://picsum.photos/200?random=$index',
+                videoUrl: 'https://example.com/video$index.mp4',
+                thumbnailUrl: 'https://picsum.photos/400/600?random=$index',
+                description:
+                    'Delicious food reel #${index + 1}\n#foodie #cooking #delicious',
+                createdAt: DateTime.now().subtract(Duration(days: index)),
+                likes: [],
+                tags: ['food', 'delicious', 'cooking'],
+                metadata: {'type': 'reel'},
+              ),
+            )
+            : _reels;
 
     return PageView.builder(
       scrollDirection: Axis.vertical,
@@ -619,18 +610,15 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
             children: [
               // Reel Background/Thumbnail
               reel.thumbnailUrl != null
-                  ? Image.network(
-                      reel.thumbnailUrl!,
-                      fit: BoxFit.cover,
-                    )
+                  ? Image.network(reel.thumbnailUrl!, fit: BoxFit.cover)
                   : Container(
-                      color: Colors.grey[900],
-                      child: Icon(
-                        Icons.movie,
-                        size: 48,
-                        color: Colors.white.withOpacity(0.5),
-                      ),
+                    color: Colors.grey[900],
+                    child: Icon(
+                      Icons.movie,
+                      size: 48,
+                      color: Colors.white.withOpacity(0.5),
                     ),
+                  ),
 
               // Gradient overlay
               Container(
@@ -664,15 +652,18 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                             GestureDetector(
                               onTap: () async {
                                 // Get the blogger data
-                                final blogger = await BlogService.getBlogger(reel.userId);
+                                final blogger = await BlogService.getBlogger(
+                                  reel.userId,
+                                );
                                 if (blogger != null && mounted) {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => BloggerProfilePage(
-                                        bloggerId: blogger.id,
-                                        bloggerName: blogger.name,
-                                      ),
+                                      builder:
+                                          (context) => BloggerProfilePage(
+                                            bloggerId: blogger.id,
+                                            bloggerName: blogger.name,
+                                          ),
                                     ),
                                   );
                                 }
@@ -681,7 +672,9 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                                 children: [
                                   CircleAvatar(
                                     radius: 20,
-                                    backgroundImage: NetworkImage(reel.userImage),
+                                    backgroundImage: NetworkImage(
+                                      reel.userImage,
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
@@ -697,26 +690,38 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                             ),
                             const SizedBox(width: 12),
                             StreamBuilder<DocumentSnapshot>(
-                              stream: FirebaseFirestore.instance
-                                  .collection('bloggers')
-                                  .doc(reel.userId)
-                                  .snapshots(),
+                              stream:
+                                  FirebaseFirestore.instance
+                                      .collection('bloggers')
+                                      .doc(reel.userId)
+                                      .snapshots(),
                               builder: (context, snapshot) {
                                 if (!snapshot.hasData) {
                                   return const SizedBox.shrink();
                                 }
 
                                 final user = FirebaseAuth.instance.currentUser;
-                                final data = snapshot.data!.data() as Map<String, dynamic>?;
-                                final followers = List<String>.from(data?['followers'] ?? []);
-                                final isFollowing = user != null && followers.contains(user.uid);
+                                final data =
+                                    snapshot.data!.data()
+                                        as Map<String, dynamic>?;
+                                final followers = List<String>.from(
+                                  data?['followers'] ?? [],
+                                );
+                                final isFollowing =
+                                    user != null &&
+                                    followers.contains(user.uid);
 
                                 return TextButton(
-                                  onPressed: () => _handleReelFollow(reel.userId, reel.userName),
+                                  onPressed:
+                                      () => _handleReelFollow(
+                                        reel.userId,
+                                        reel.userName,
+                                      ),
                                   style: TextButton.styleFrom(
-                                    backgroundColor: isFollowing
-                                        ? Colors.white.withOpacity(0.1)
-                                        : Theme.of(context).primaryColor,
+                                    backgroundColor:
+                                        isFollowing
+                                            ? Colors.white.withOpacity(0.1)
+                                            : Theme.of(context).primaryColor,
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 16,
                                       vertical: 8,
@@ -756,12 +761,16 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                     _buildActionButton(
                       icon: Icons.favorite,
                       label: '${reel.likes.length}',
-                      isActive: reel.likes.contains(FirebaseAuth.instance.currentUser?.uid),
+                      isActive: reel.likes.contains(
+                        FirebaseAuth.instance.currentUser?.uid,
+                      ),
                       onTap: () async {
                         final user = FirebaseAuth.instance.currentUser;
                         if (user == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please sign in to like reels')),
+                            const SnackBar(
+                              content: Text('Please sign in to like reels'),
+                            ),
                           );
                           return;
                         }
@@ -773,9 +782,9 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                           }
                           await _loadData();
                         } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
                         }
                       },
                     ),
@@ -788,7 +797,9 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                       onTap: () {
                         // TODO: Show comments sheet
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Comments coming soon!')),
+                          const SnackBar(
+                            content: Text('Comments coming soon!'),
+                          ),
                         );
                       },
                     ),
@@ -814,7 +825,9 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                       onTap: () {
                         // TODO: Implement restaurant booking
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Restaurant booking coming soon!')),
+                          const SnackBar(
+                            content: Text('Restaurant booking coming soon!'),
+                          ),
                         );
                       },
                     ),
@@ -833,7 +846,9 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                   onPressed: () {
                     // TODO: Implement video playback
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Video playback coming soon!')),
+                      const SnackBar(
+                        content: Text('Video playback coming soon!'),
+                      ),
                     );
                   },
                 ),
@@ -871,10 +886,7 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
         ],
       ),
@@ -893,10 +905,11 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => BloggerProfilePage(
-                    bloggerId: post.userId,
-                    bloggerName: post.userName,
-                  ),
+                  builder:
+                      (context) => BloggerProfilePage(
+                        bloggerId: post.userId,
+                        bloggerName: post.userName,
+                      ),
                 ),
               );
             },
@@ -905,13 +918,15 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundImage: post.userImage.isNotEmpty
-                        ? NetworkImage(post.userImage)
-                        : null,
+                    backgroundImage:
+                        post.userImage.isNotEmpty
+                            ? NetworkImage(post.userImage)
+                            : null,
                     radius: 20,
-                    child: post.userImage.isEmpty
-                        ? Text(post.userName.substring(0, 1).toUpperCase())
-                        : null,
+                    child:
+                        post.userImage.isEmpty
+                            ? Text(post.userName.substring(0, 1).toUpperCase())
+                            : null,
                   ),
                   const SizedBox(width: 12),
                   Column(
@@ -919,16 +934,11 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
                     children: [
                       Text(
                         post.userName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
                         _formatTimestamp(post.createdAt),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -946,10 +956,7 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
             ),
 
           // Post Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(post.content),
-          ),
+          Padding(padding: const EdgeInsets.all(16), child: Text(post.content)),
 
           // Post Actions
           Row(
@@ -1011,4 +1018,4 @@ class _BlogPageState extends State<BlogPage> with SingleTickerProviderStateMixin
       return 'Just now';
     }
   }
-} 
+}

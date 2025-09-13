@@ -8,13 +8,11 @@ class UserService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      'email',
-      'profile',
-    ],
+    scopes: ['email', 'profile'],
   );
-  static final CollectionReference _usersCollection = 
-      _firestore.collection('users');
+  static final CollectionReference _usersCollection = _firestore.collection(
+    'users',
+  );
 
   // Add rate limiting variables
   static DateTime? _lastUpdateTime;
@@ -47,11 +45,12 @@ class UserService {
   static Future<bool> isUsernameAvailable(String username) async {
     try {
       await initializeUserCollection();
-      final QuerySnapshot result = await _firestore
-          .collection('users')
-          .where('username', isEqualTo: username)
-          .limit(1)
-          .get();
+      final QuerySnapshot result =
+          await _firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .limit(1)
+              .get();
       return result.docs.isEmpty;
     } catch (e) {
       print('Error checking username availability: $e');
@@ -83,10 +82,10 @@ class UserService {
 
       await initializeUserCollection();
       await _usersCollection.doc(user.id).update(user.toMap());
-      
+
       // Update the last update time
       _lastUpdateTime = DateTime.now();
-      
+
       print('User updated successfully: ${user.id}');
     } catch (e) {
       print('Error updating user: $e');
@@ -113,14 +112,14 @@ class UserService {
   static Future<UserModel?> getUserModel(String userId) async {
     final doc = await _usersCollection.doc(userId).get();
     if (!doc.exists) return null;
-    
+
     return UserModel.fromMap(doc.data() as Map<String, dynamic>);
   }
 
   static Future<GoogleSignInAccount?> getGoogleUser() async {
     try {
       print('Starting Google sign-in flow...');
-      
+
       // Check if there's a previously signed-in user and sign out
       try {
         if (_googleSignIn.currentUser != null) {
@@ -131,17 +130,17 @@ class UserService {
         print('Error signing out previous user: $e');
         // Continue even if sign out fails
       }
-      
+
       // Trigger the authentication flow
       print('Prompting user for Google sign-in...');
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
+
       if (googleUser == null) {
         print('Google sign-in was cancelled by user');
       } else {
         print('Google sign-in successful: ${googleUser.email}');
       }
-      
+
       return googleUser;
     } catch (e) {
       print('Error getting Google user: $e');
@@ -153,7 +152,7 @@ class UserService {
   static Future<UserCredential> signInWithGoogle({required String role}) async {
     try {
       print('Starting Google sign-in process...');
-      
+
       // First make sure we're signed out from Firebase
       try {
         await _auth.signOut();
@@ -161,10 +160,10 @@ class UserService {
         print('Error signing out from Firebase: $e');
         // Continue even if sign out fails
       }
-      
+
       // Get the Google user with our helper method
       final GoogleSignInAccount? googleUser = await getGoogleUser();
-      
+
       if (googleUser == null) {
         print('Google sign-in was cancelled by user');
         throw FirebaseAuthException(
@@ -175,13 +174,14 @@ class UserService {
 
       try {
         print('Getting Google auth details for ${googleUser.email}');
-        
+
         // Get authentication details
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+
         print('Access Token: ${googleAuth.accessToken?.substring(0, 10)}...');
         print('ID Token: ${googleAuth.idToken?.substring(0, 10)}...');
-        
+
         if (googleAuth.accessToken == null || googleAuth.idToken == null) {
           print('Failed to get Google auth tokens');
           throw FirebaseAuthException(
@@ -198,7 +198,7 @@ class UserService {
 
         print('Signing in to Firebase with Google credential');
         final userCredential = await _auth.signInWithCredential(credential);
-        
+
         if (userCredential.user == null) {
           throw FirebaseAuthException(
             code: 'user-not-found',
@@ -207,16 +207,16 @@ class UserService {
         }
 
         print('Firebase sign-in successful: ${userCredential.user?.email}');
-        
+
         // Create or update user document
         try {
           final user = userCredential.user;
           if (user == null) {
             throw Exception('User credential is null');
           }
-          
+
           final userDoc = await _usersCollection.doc(user.uid).get();
-          
+
           if (!userDoc.exists) {
             print('Creating new user document for Google user');
             final newUser = UserModel(
@@ -237,7 +237,7 @@ class UserService {
                 'createdAt': DateTime.now().toIso8601String(),
               },
             );
-            
+
             await createUser(newUser);
           } else {
             print('Updating existing user document for Google user');
@@ -257,7 +257,6 @@ class UserService {
         }
 
         return userCredential;
-        
       } catch (e) {
         print('Error during Google authentication: $e');
         print('Error type: ${e.runtimeType}');
@@ -281,7 +280,7 @@ class UserService {
         email: email,
         password: password,
       );
-      
+
       if (userCredential.user == null) {
         throw FirebaseAuthException(
           code: 'user-not-found',
@@ -292,7 +291,7 @@ class UserService {
       // Check if user document exists
       final user = userCredential.user!;
       final userDoc = await _usersCollection.doc(user.uid).get();
-      
+
       if (!userDoc.exists) {
         // Create new user document if it doesn't exist
         final newUser = UserModel(
@@ -310,7 +309,7 @@ class UserService {
             'createdAt': DateTime.now().toIso8601String(),
           },
         );
-        
+
         await createUser(newUser);
       } else {
         // Update last login time and role
@@ -357,7 +356,7 @@ class UserService {
           'createdBy': 'email',
           'accountType': 'email',
           'role': role,
-          'createdAt': DateTime.now().toIso8601String(),
+          'createdAt': FieldValue.serverTimestamp(),
         },
       );
 
@@ -372,37 +371,38 @@ class UserService {
   // Check if email is already used with a specific role
   static Future<bool> isEmailUsedWithRole(String email, String role) async {
     try {
-      final querySnapshot = await _firestore
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .get();
-      
+      final querySnapshot =
+          await _firestore
+              .collection('users')
+              .where('email', isEqualTo: email)
+              .get();
+
       if (querySnapshot.docs.isEmpty) {
         return false; // Email doesn't exist yet
       }
-      
+
       // If user exists, check their role
       for (var doc in querySnapshot.docs) {
         final userData = doc.data();
         final existingRole = userData['metadata']?['role'] as String?;
         final roles = userData['metadata']?['roles'] as List<dynamic>?;
-        
+
         // If role matches exactly, allow login
         if (existingRole == role) {
           return false;
         }
-        
+
         // If user has multiple roles, check if the requested role is in the list
         if (roles != null && roles.contains(role)) {
           return false;
         }
-        
+
         // If no role is set yet, allow login
         if (existingRole == null) {
           return false;
         }
       }
-      
+
       // Only return true if the email exists with a different role and no multiple roles
       return true;
     } catch (e) {
@@ -422,4 +422,4 @@ class UserService {
   }
 
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
-} 
+}

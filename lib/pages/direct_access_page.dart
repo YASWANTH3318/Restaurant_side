@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:greedy_bites/pages/login_page.dart';
 import 'home_page.dart';
 import 'blogger/blogger_home_page.dart';
 import 'restaurant/restaurant_home_page.dart';
@@ -25,21 +26,15 @@ class DirectAccessPage extends StatelessWidget {
                 const SizedBox(height: 24),
                 const Text(
                   'Greedy Bites',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 const Text(
                   'Select Your Role',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Customer Access Button
                 SizedBox(
                   width: double.infinity,
@@ -48,13 +43,18 @@ class DirectAccessPage extends StatelessWidget {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const HomePage()),
+                        MaterialPageRoute(
+                          builder: (context) => const LoginPage(),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.person, size: 24),
                     label: const Text(
                       'Access as Customer',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
@@ -66,7 +66,7 @@ class DirectAccessPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Blogger Access Button
                 SizedBox(
                   width: double.infinity,
@@ -75,13 +75,18 @@ class DirectAccessPage extends StatelessWidget {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const BloggerHomePage()),
+                        MaterialPageRoute(
+                          builder: (context) => const BloggerHomePage(),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.edit, size: 24),
                     label: const Text(
                       'Access as Blogger',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
@@ -93,7 +98,7 @@ class DirectAccessPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Restaurant Access Button
                 SizedBox(
                   width: double.infinity,
@@ -102,13 +107,18 @@ class DirectAccessPage extends StatelessWidget {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const RestaurantHomePage()),
+                        MaterialPageRoute(
+                          builder: (context) => const RestaurantHomePage(),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.restaurant, size: 24),
                     label: const Text(
                       'Access as Restaurant',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
@@ -120,7 +130,7 @@ class DirectAccessPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Info text
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -144,10 +154,7 @@ class DirectAccessPage extends StatelessWidget {
                       Text(
                         'You can now access all features without login. This is for testing purposes.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                     ],
                   ),
