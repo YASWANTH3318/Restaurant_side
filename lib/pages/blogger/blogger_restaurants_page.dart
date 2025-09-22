@@ -34,6 +34,34 @@ class _BloggerRestaurantsPageState extends State<BloggerRestaurantsPage> {
     _loadRestaurants();
   }
 
+  Widget _buildSafeImage(
+    String? url, {
+    double? width,
+    double? height,
+    BoxFit fit = BoxFit.cover,
+  }) {
+    final String safeUrl = (url ?? '').trim();
+    final bool isValidNetwork = safeUrl.startsWith('http://') || safeUrl.startsWith('https://');
+
+    final Widget placeholder = Container(
+      width: width,
+      height: height,
+      color: Colors.grey[200],
+      alignment: Alignment.center,
+      child: Icon(Icons.broken_image, color: Colors.grey[500]),
+    );
+
+    if (!isValidNetwork) return placeholder;
+
+    return Image.network(
+      safeUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => placeholder,
+    );
+  }
+
   Future<void> _loadRestaurants() async {
     try {
       setState(() {
@@ -386,7 +414,7 @@ class _BloggerRestaurantsPageState extends State<BloggerRestaurantsPage> {
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
               ),
-              child: Image.network(
+              child: _buildSafeImage(
                 restaurant.imageUrl,
                 height: 100,
                 width: double.infinity,
@@ -486,7 +514,7 @@ class _BloggerRestaurantsPageState extends State<BloggerRestaurantsPage> {
                 topLeft: Radius.circular(12),
                 bottomLeft: Radius.circular(12),
               ),
-              child: Image.network(
+              child: _buildSafeImage(
                 restaurant.imageUrl,
                 height: 120,
                 width: 120,
@@ -557,8 +585,10 @@ class _BloggerRestaurantsPageState extends State<BloggerRestaurantsPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         TextButton(
                           onPressed: () {
@@ -573,7 +603,6 @@ class _BloggerRestaurantsPageState extends State<BloggerRestaurantsPage> {
                           },
                           child: const Text('View Details'),
                         ),
-                        const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () {
                             Navigator.push(

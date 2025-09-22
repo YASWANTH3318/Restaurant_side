@@ -1176,11 +1176,12 @@ class FeaturedRestaurantCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.network(
+              _buildSafeImage(
                 restaurant.image,
                 height: 120,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                borderRadius: BorderRadius.zero,
               ),
               Padding(
                 padding: const EdgeInsets.all(12),
@@ -1193,6 +1194,8 @@ class FeaturedRestaurantCard extends StatelessWidget {
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1200,6 +1203,8 @@ class FeaturedRestaurantCard extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.grey[600],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     FutureBuilder<ReviewStats>(
@@ -1214,11 +1219,21 @@ class FeaturedRestaurantCard extends StatelessWidget {
                       children: [
                         Icon(Icons.star, color: Colors.amber[600], size: 20),
                         const SizedBox(width: 4),
-                            Text('$rating ${reviewCount > 0 ? '($reviewCount)' : ''}'),
+                            Flexible(
+                              child: Text(
+                                '$rating ${reviewCount > 0 ? '($reviewCount)' : ''}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                         const SizedBox(width: 12),
                         Icon(Icons.access_time, color: Colors.grey[600], size: 20),
                         const SizedBox(width: 4),
-                        Text(restaurant.deliveryTime),
+                            Flexible(
+                              child: Text(
+                                restaurant.deliveryTime,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                       ],
                         );
                       },
@@ -1232,6 +1247,40 @@ class FeaturedRestaurantCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildSafeImage(
+  String? url, {
+  double? width,
+  double? height,
+  BoxFit fit = BoxFit.cover,
+  BorderRadius? borderRadius,
+}) {
+  final String safeUrl = (url ?? '').trim();
+  final bool isValidNetwork = safeUrl.startsWith('http://') || safeUrl.startsWith('https://');
+
+  final Widget placeholder = Container(
+    width: width,
+    height: height,
+    color: Colors.grey[200],
+    alignment: Alignment.center,
+    child: Icon(Icons.broken_image, color: Colors.grey[500]),
+  );
+
+  final Widget image = isValidNetwork
+      ? Image.network(
+          safeUrl,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => placeholder,
+        )
+      : placeholder;
+
+  if (borderRadius != null) {
+    return ClipRRect(borderRadius: borderRadius, child: image);
+  }
+  return image;
 }
 
 class RestaurantCard extends StatelessWidget {
@@ -1263,7 +1312,7 @@ class RestaurantCard extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
+                child: _buildSafeImage(
                   restaurant.image,
                   width: 100,
                   height: 100,
@@ -1281,6 +1330,8 @@ class RestaurantCard extends StatelessWidget {
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1288,6 +1339,8 @@ class RestaurantCard extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.grey[600],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     FutureBuilder<ReviewStats>(
@@ -1302,11 +1355,21 @@ class RestaurantCard extends StatelessWidget {
                       children: [
                         Icon(Icons.star, color: Colors.amber[600], size: 20),
                         const SizedBox(width: 4),
-                            Text('$rating ${reviewCount > 0 ? '($reviewCount)' : ''}'),
+                            Flexible(
+                              child: Text(
+                                '$rating ${reviewCount > 0 ? '($reviewCount)' : ''}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                         const SizedBox(width: 12),
                         Icon(Icons.location_on, color: Colors.grey[600], size: 20),
                         const SizedBox(width: 4),
-                        Text(restaurant.distance),
+                            Flexible(
+                              child: Text(
+                                restaurant.distance,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                       ],
                         );
                       },
