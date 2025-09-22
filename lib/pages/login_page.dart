@@ -315,67 +315,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   
                   const SizedBox(height: 16),
-                  // Quick login buttons for each role
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : () {
-                            setState(() {
-                              _selectedRole = 'customer';
-                              _emailController.text = '99220041339@klu.ac.in';
-                              _passwordController.text = '99220041339';
-                            });
-                            _handleLogin();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                          child: const Text('Quick Login\nCustomer', textAlign: TextAlign.center),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : () {
-                            setState(() {
-                              _selectedRole = 'blogger';
-                              _emailController.text = '99220041339@klu.ac.in';
-                              _passwordController.text = '99220041339';
-                            });
-                            _handleLogin();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                          child: const Text('Quick Login\nBlogger', textAlign: TextAlign.center),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : () {
-                            setState(() {
-                              _selectedRole = 'restaurant';
-                              _emailController.text = '99220041339@klu.ac.in';
-                              _passwordController.text = '99220041339';
-                            });
-                            _handleLogin();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                          child: const Text('Quick Login\nRestaurant', textAlign: TextAlign.center),
-                        ),
-                      ),
-                    ],
-                  ),
+                  
                   
                   const SizedBox(height: 24),
                   if (_errorMessage != null)
