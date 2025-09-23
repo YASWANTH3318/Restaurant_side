@@ -14,12 +14,20 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
   late TabController _tabController;
   bool _isLoading = false;
   String _selectedFoodOrderStatus = 'pending';
+  final Map<int, TextEditingController> _capacityCtrls = {
+    2: TextEditingController(text: '0'),
+    4: TextEditingController(text: '0'),
+    6: TextEditingController(text: '0'),
+    8: TextEditingController(text: '0'),
+  };
   
   // Food Orders Data
   List<Map<String, dynamic>> _foodOrders = [];
   
   // Table Reservations Data
   List<Map<String, dynamic>> _tableReservations = [];
+  String? _selectedSlotKey;
+  Map<String, int> _slotAvailable = {};
 
   @override
   void initState() {
@@ -31,6 +39,7 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
   @override
   void dispose() {
     _tabController.dispose();
+    for (final c in _capacityCtrls.values) { c.dispose(); }
     super.dispose();
   }
 
@@ -55,11 +64,10 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
             .limit(50) // Limit results for better performance
             .get(),
         
-        // Load table reservations using server-side query
+        // Load table reservations (client-side sort to avoid composite index)
         FirebaseFirestore.instance
-            .collection('table_reservations')
+            .collection('reservations')
             .where('restaurantId', isEqualTo: user.uid)
-            .orderBy('reservationTime', descending: true)
             .limit(50) // Limit results for better performance
             .get(),
       ]);
@@ -81,7 +89,14 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
                 final data = doc.data() as Map<String, dynamic>?;
                 return <String, dynamic>{'id': doc.id, ...?data};
               })
-              .toList();
+              .toList()
+            ..sort((a, b) {
+              final ta = a['createdAt'];
+              final tb = b['createdAt'];
+              final ma = (ta is Timestamp) ? ta.toDate() : DateTime.tryParse('$ta') ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final mb = (tb is Timestamp) ? tb.toDate() : DateTime.tryParse('$tb') ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return mb.compareTo(ma);
+            });
           _isLoading = false;
         });
       }
@@ -96,6 +111,24 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
         );
       }
     }
+  }
+
+  Future<void> _loadSlotAvailability() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _selectedSlotKey == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(user.uid)
+          .collection('table_slots')
+          .doc(_selectedSlotKey)
+          .get();
+      if (!mounted) return;
+      final data = doc.data();
+      setState(() {
+        _slotAvailable = Map<String, int>.from((data?['available'] ?? {}).map((k, v) => MapEntry(k as String, (v as num).toInt())));
+      });
+    } catch (_) {}
   }
 
   Future<void> _updateFoodOrderStatus(String orderId, String newStatus) async {
@@ -240,6 +273,83 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
     );
   }
 
+  Future<void> _openTotalsDialog() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Total Tables by Capacity'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final cap in [2,4,6,8])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 80, child: Text('${cap} seats')),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _capacityCtrls[cap],
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Total tables',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final Map<int, int> totals = {};
+                for (final entry in _capacityCtrls.entries) {
+                  final val = int.tryParse(entry.value.text.trim()) ?? 0;
+                  totals[entry.key] = val;
+                }
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('restaurants')
+                      .doc(user.uid)
+                      .collection('table_totals')
+                      .doc('base')
+                      .set({
+                    'totals': totals.map((k, v) => MapEntry(k.toString(), v)),
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  }, SetOptions(merge: true));
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Table totals saved')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error saving totals: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildTableReservationsList() {
     if (_tableReservations.isEmpty) {
       return Center(
@@ -291,11 +401,11 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Date: ${DateFormatUtil.formatDateIndian(reservation['reservationTime'].toDate())}',
+                  'Date: ${DateFormatUtil.formatDateIndian((reservation['reservationDate'] as Timestamp).toDate())}',
                   style: const TextStyle(fontSize: 14),
                 ),
                 Text(
-                  'Time: ${DateFormatUtil.formatTimeIndian(reservation['reservationTime'].toDate())}',
+                  'Time: ${reservation['reservationTime']}',
                   style: const TextStyle(fontSize: 14),
                 ),
                 if (status == 'pending') ...[
@@ -306,6 +416,12 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
                       TextButton(
                         onPressed: () => _updateTableReservation(reservation['id'], 'rejected'),
                         child: const Text('Reject'),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _updateTableReservation(reservation['id'], 'completed'),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Complete'),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
@@ -370,6 +486,13 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
             Tab(text: 'Table Reservations'),
           ],
         ),
+        actions: [
+          TextButton.icon(
+            onPressed: _openTotalsDialog,
+            icon: const Icon(Icons.event_seat, color: Colors.white),
+            label: const Text('Totals', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -400,6 +523,47 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
                           _loadOrders();
                         });
                       },
+                    ),
+                  ),
+                if (_tabController.index == 1)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Select Slot to View Availability'),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Slot (YYYYMMDD_HHMM)',
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (v) => _selectedSlotKey = v.trim(),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: _loadSlotAvailability,
+                              child: const Text('Load'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (_slotAvailable.isNotEmpty)
+                          Builder(builder: (context) {
+                            final List<String> caps = _slotAvailable.keys.toList();
+                            caps.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+                            final chips = caps.map((k) => Chip(label: Text('${k}p: ${_slotAvailable[k]} available'))).toList();
+                            return Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: chips,
+                            );
+                          }),
+                      ],
                     ),
                   ),
                 Expanded(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/date_format_util.dart';
+import 'package:flutter/widgets.dart';
 
 class BloggerAnalyticsPage extends StatefulWidget {
   const BloggerAnalyticsPage({super.key});
@@ -73,18 +74,20 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
                   children: [
                     _buildMetricCard('Total Views', '542', Icons.visibility, Colors.blue),
-                    const SizedBox(width: 16),
                     _buildMetricCard('Likes', '128', Icons.favorite, Colors.red),
                   ],
                 ),
                 const SizedBox(height: 16),
-                Row(
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
                   children: [
                     _buildMetricCard('Comments', '24', Icons.comment, Colors.orange),
-                    const SizedBox(width: 16),
                     _buildMetricCard('Shares', '18', Icons.share, Colors.green),
                   ],
                 ),
@@ -200,6 +203,34 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
           );
   }
 
+  Widget _buildSafeImage(
+    String? url, {
+    double? width,
+    double? height,
+    BoxFit fit = BoxFit.cover,
+  }) {
+    final String safeUrl = (url ?? '').trim();
+    final bool isValidNetwork = safeUrl.startsWith('http://') || safeUrl.startsWith('https://');
+
+    final Widget placeholder = Container(
+      width: width,
+      height: height,
+      color: Colors.grey[200],
+      alignment: Alignment.center,
+      child: Icon(Icons.broken_image, color: Colors.grey[500], size: (width != null ? width / 2 : 24)),
+    );
+
+    if (!isValidNetwork) return placeholder;
+
+    return Image.network(
+      safeUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => placeholder,
+    );
+  }
+
   Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
     // Format numbers using Indian format if they are numeric
     String displayValue = value;
@@ -211,7 +242,8 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
       displayValue = value;
     }
     
-    return Expanded(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 140, maxWidth: 260),
       child: Card(
         elevation: 2,
         child: Padding(
@@ -250,18 +282,15 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
     
     return Card(
       elevation: 2,
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                image,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-              ),
+              child: _buildSafeImage(image, width: 80, height: 80, fit: BoxFit.cover),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -287,25 +316,43 @@ class _BloggerAnalyticsPageState extends State<BloggerAnalyticsPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text(
-                        formattedViews,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              formattedViews,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text(
-                        formattedLikes,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              formattedLikes,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

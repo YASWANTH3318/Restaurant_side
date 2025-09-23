@@ -66,14 +66,27 @@ class _BloggerDashboardPageState extends State<BloggerDashboardPage> {
               const SizedBox(height: 24),
               
               // Stats row
-              Row(
-                children: [
-                  _buildStatCard('Total Posts', '0', Icons.article),
-                  const SizedBox(width: 16),
-                  _buildStatCard('Views Today', '0', Icons.visibility),
-                  const SizedBox(width: 16),
-                  _buildStatCard('Followers', '0', Icons.people),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      SizedBox(
+                        width: (constraints.maxWidth - 32) / 3,
+                        child: _buildStatCard('Total Posts', '0', Icons.article),
+                      ),
+                      SizedBox(
+                        width: (constraints.maxWidth - 32) / 3,
+                        child: _buildStatCard('Views Today', '0', Icons.visibility),
+                      ),
+                      SizedBox(
+                        width: (constraints.maxWidth - 32) / 3,
+                        child: _buildStatCard('Followers', '0', Icons.people),
+                      ),
+                    ],
+                  );
+                },
               ),
               
               const SizedBox(height: 24),

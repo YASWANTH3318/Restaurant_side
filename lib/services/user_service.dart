@@ -13,6 +13,9 @@ class UserService {
   static final CollectionReference _usersCollection = _firestore.collection(
     'users',
   );
+  static final CollectionReference _customersCollection = _firestore.collection('customers');
+  static final CollectionReference _bloggersCollection = _firestore.collection('bloggers');
+  static final CollectionReference _restaurantsCollection = _firestore.collection('restaurants');
 
   // Add rate limiting variables
   static DateTime? _lastUpdateTime;
@@ -65,7 +68,104 @@ class UserService {
       print('User created successfully: ${user.email}');
     } catch (e) {
       print('Error creating user: $e');
-      rethrow;
+      if (e.toString().contains('permission-denied')) {
+        throw Exception('Permission denied. Please check your Firestore security rules.');
+      } else if (e.toString().contains('network')) {
+        throw Exception('Network error. Please check your internet connection.');
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  // Initialize role-specific defaults and denormalized collections
+  static Future<void> _initializeDefaultsForRole({
+    required String userId,
+    required String role,
+    required String name,
+    required String email,
+    String? username,
+    String? phoneNumber,
+  }) async {
+    try {
+      if (role == 'customer') {
+        // customers collection: behavior and history counters
+        await _customersCollection.doc(userId).set({
+          'id': userId,
+          'name': name,
+          'email': email,
+          'username': username ?? email.split('@').first,
+          'phoneNumber': phoneNumber,
+          'createdAt': FieldValue.serverTimestamp(),
+          'history': {
+            'pending': 0,
+            'past': 0,
+            'cancelled': 0,
+            'items': [],
+          },
+          'behavior': {
+            'searches': 0,
+            'views': 0,
+            'favourites': 0,
+            'lastActiveAt': FieldValue.serverTimestamp(),
+          },
+        }, SetOptions(merge: true));
+      } else if (role == 'blogger') {
+        // bloggers collection: analytics and content counters
+        await _bloggersCollection.doc(userId).set({
+          'id': userId,
+          'name': name,
+          'email': email,
+          'username': username ?? email.split('@').first,
+          'createdAt': FieldValue.serverTimestamp(),
+          'stats': {
+            'totalReels': 0,
+            'totalPosts': 0,
+            'totalViews': 0,
+            'followers': 0,
+            'likes': 0,
+            'comments': 0,
+          },
+          'performance': {
+            'graphPoints': [],
+            'audienceInsights': {
+              'topLocations': [],
+            },
+            'topPosts': [],
+          },
+        }, SetOptions(merge: true));
+      } else if (role == 'restaurant') {
+        // restaurants collection: base profile and zeroed analytics
+        await _restaurantsCollection.doc(userId).set({
+          'id': userId,
+          'ownerUserId': userId,
+          'name': name,
+          'email': email,
+          'phoneNumber': phoneNumber,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'image': '',
+          'cuisine': '',
+          'address': '',
+          'fullAddress': '',
+          'tags': [],
+          'menu': {},
+          'rating': 0.0,
+          'deliveryTime': '',
+          'distance': '0 km',
+          'featured': false,
+          'popular': false,
+          'analytics': {
+            'orders': 0,
+            'revenue': 0.0,
+            'tableBookings': 0,
+            'returningCustomers': 0,
+          },
+          'visibility': 'public',
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      print('Error initializing defaults for role $role: $e');
     }
   }
 
@@ -275,6 +375,8 @@ class UserService {
     required String role,
   }) async {
     try {
+      print('Attempting to sign in user: $email with role: $role');
+      
       // Sign in with email and password
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
@@ -288,11 +390,14 @@ class UserService {
         );
       }
 
+      print('Firebase Auth successful, checking Firestore document...');
+
       // Check if user document exists
       final user = userCredential.user!;
       final userDoc = await _usersCollection.doc(user.uid).get();
 
       if (!userDoc.exists) {
+        print('User document does not exist, creating new one...');
         // Create new user document if it doesn't exist
         final newUser = UserModel(
           id: user.uid,
@@ -311,18 +416,30 @@ class UserService {
         );
 
         await createUser(newUser);
+        await _initializeDefaultsForRole(
+          userId: user.uid,
+          role: role,
+          name: newUser.name,
+          email: newUser.email,
+          username: newUser.username,
+        );
+        print('New user document created successfully');
       } else {
+        print('User document exists, updating last login...');
         // Update last login time and role
         await _usersCollection.doc(user.uid).update({
           'lastLoginAt': FieldValue.serverTimestamp(),
           'metadata.lastLoginAt': FieldValue.serverTimestamp(),
           'metadata.role': role,
         });
+        print('User document updated successfully');
       }
 
+      print('Sign in completed successfully');
       return userCredential;
     } catch (e) {
       print('Error signing in user: $e');
+      print('Error type: ${e.runtimeType}');
       rethrow;
     }
   }
@@ -335,23 +452,35 @@ class UserService {
     String? phoneNumber,
     required String role,
   }) async {
+    UserCredential? userCredential;
     try {
+      print('Attempting to sign up user: $email with role: $role');
+      
       // Create user in Firebase Auth
-      final userCredential = await _auth.createUserWithEmailAndPassword(
+      userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      if (userCredential.user == null) {
+        throw FirebaseAuthException(
+          code: 'user-creation-failed',
+          message: 'Failed to create user account',
+        );
+      }
+
+      print('Firebase Auth user created, creating Firestore document...');
+
       // Create user in Firestore
       final user = UserModel(
-        id: userCredential.user?.uid ?? '',
+        id: userCredential.user!.uid,
         email: email,
         name: name,
         username: username,
         phoneNumber: phoneNumber,
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
-        isEmailVerified: userCredential.user?.emailVerified ?? false,
+        isEmailVerified: userCredential.user!.emailVerified,
         metadata: {
           'createdBy': 'email',
           'accountType': 'email',
@@ -361,9 +490,31 @@ class UserService {
       );
 
       await createUser(user);
+      print('User document created, initializing role defaults...');
+      
+      await _initializeDefaultsForRole(
+        userId: user.id,
+        role: role,
+        name: name,
+        email: email,
+        username: username,
+        phoneNumber: phoneNumber,
+      );
+      
+      print('Sign up completed successfully');
       return userCredential;
     } catch (e) {
       print('Error signing up user: $e');
+      print('Error type: ${e.runtimeType}');
+      // If Firestore creation fails, clean up Firebase Auth user
+      if (userCredential?.user != null) {
+        try {
+          print('Cleaning up Firebase Auth user due to error...');
+          await userCredential!.user!.delete();
+        } catch (deleteError) {
+          print('Error cleaning up user: $deleteError');
+        }
+      }
       rethrow;
     }
   }

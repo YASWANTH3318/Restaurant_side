@@ -108,12 +108,48 @@ class _SignUpPageState extends State<SignUpPage> {
           }
         }
       } on FirebaseAuthException catch (e) {
+        print('Firebase Auth Error: $e');
         setState(() {
-          _errorMessage = e.message ?? 'An error occurred during sign up';
+          switch (e.code) {
+            case 'email-already-in-use':
+              _errorMessage = 'This email is already registered. Please use a different email or try logging in.';
+              break;
+            case 'invalid-email':
+              _errorMessage = 'Invalid email address. Please check your email format.';
+              break;
+            case 'weak-password':
+              _errorMessage = 'Password is too weak. Please choose a stronger password.';
+              break;
+            case 'operation-not-allowed':
+              _errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+              break;
+            case 'too-many-requests':
+              _errorMessage = 'Too many attempts. Please try again later.';
+              break;
+            default:
+              _errorMessage = e.message ?? 'An error occurred during sign up. Please try again.';
+          }
         });
       } catch (e) {
+        print('Signup Error: $e');
+        print('Error type: ${e.runtimeType}');
         setState(() {
-          _errorMessage = 'An unexpected error occurred';
+          // Check for specific error types
+          if (e.toString().contains('username')) {
+            _errorMessage = 'Username is already taken. Please choose a different username.';
+          } else if (e.toString().contains('email')) {
+            _errorMessage = 'Email validation failed. Please check your email.';
+          } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+            _errorMessage = 'Network error. Please check your internet connection.';
+          } else if (e.toString().contains('permission')) {
+            _errorMessage = 'Permission denied. Please contact support.';
+          } else if (e.toString().contains('timeout')) {
+            _errorMessage = 'Request timed out. Please try again.';
+          } else if (e.toString().contains('firestore') || e.toString().contains('database')) {
+            _errorMessage = 'Database error. Please try again later.';
+          } else {
+            _errorMessage = 'Signup failed: ${e.toString()}';
+          }
         });
       } finally {
         if (mounted) {

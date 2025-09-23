@@ -55,34 +55,42 @@ class _BloggerPostsPageState extends State<BloggerPostsPage> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'My Posts',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                      const Expanded(
+                        child: Text(
+                          'My Posts',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      DropdownButton<String>(
-                        value: 'All',
-                        items: const [
-                          DropdownMenuItem(
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: DropdownButton<String>(
                             value: 'All',
-                            child: Text('All Posts'),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'All',
+                                child: Text('All Posts'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Published',
+                                child: Text('Published'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Draft',
+                                child: Text('Drafts'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              // TODO: Implement filtering
+                            },
                           ),
-                          DropdownMenuItem(
-                            value: 'Published',
-                            child: Text('Published'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Draft',
-                            child: Text('Drafts'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          // TODO: Implement filtering
-                        },
+                        ),
                       ),
                     ],
                   ),

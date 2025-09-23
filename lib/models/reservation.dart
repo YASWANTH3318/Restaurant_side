@@ -18,6 +18,8 @@ class Reservation {
   final int numberOfGuests;
   final String tableId;
   final String tableType;
+  final int tableCapacity;
+  final String slotKey;
   final ReservationStatus status;
   final DateTime createdAt;
   final String? specialRequests;
@@ -33,6 +35,8 @@ class Reservation {
     required this.numberOfGuests,
     required this.tableId,
     required this.tableType,
+    this.tableCapacity = 0,
+    this.slotKey = '',
     required this.status,
     required this.createdAt,
     this.specialRequests,
@@ -50,6 +54,8 @@ class Reservation {
       numberOfGuests: map['numberOfGuests'] as int,
       tableId: map['tableId'] as String,
       tableType: map['tableType'] as String,
+      tableCapacity: map['tableCapacity'] as int? ?? 0,
+      slotKey: map['slotKey'] as String? ?? '',
       status: ReservationStatus.values.firstWhere(
         (e) => e.toString() == 'ReservationStatus.${map['status']}',
       ),
@@ -70,6 +76,8 @@ class Reservation {
       'numberOfGuests': numberOfGuests,
       'tableId': tableId,
       'tableType': tableType,
+      'tableCapacity': tableCapacity,
+      'slotKey': slotKey,
       'status': status.toString().split('.').last,
       'createdAt': Timestamp.fromDate(createdAt),
       'specialRequests': specialRequests,

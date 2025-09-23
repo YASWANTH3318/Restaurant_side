@@ -14,29 +14,23 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   bool _isLoading = false;
   late TabController _tabController;
   
-  // Mock data - set with sample random data
-  List<double> _weeklyRevenue = [1200.0, 1450.0, 1320.0, 1850.0, 1500.0, 2100.0, 1800.0];
+  // Defaults start from 0 for new restaurants
+  List<double> _weeklyRevenue = [0, 0, 0, 0, 0, 0, 0];
   Map<String, double> _categoryRevenue = {
-    'Main Courses': 12800.0,
-    'Appetizers': 5600.0,
-    'Desserts': 3200.0,
-    'Beverages': 4800.0,
+    'Main Courses': 0,
+    'Appetizers': 0,
+    'Desserts': 0,
+    'Beverages': 0,
   };
-  List<Map<String, dynamic>> _topSellingItems = [
-    {'name': 'Grilled Salmon', 'sales': 48, 'revenue': 14400.0},
-    {'name': 'Caesar Salad', 'sales': 42, 'revenue': 8400.0},
-    {'name': 'Chocolate Cake', 'sales': 36, 'revenue': 7200.0},
-    {'name': 'Iced Tea', 'sales': 63, 'revenue': 3780.0},
-    {'name': 'Burger', 'sales': 39, 'revenue': 9750.0},
-  ];
+  List<Map<String, dynamic>> _topSellingItems = [];
   List<Map<String, dynamic>> _customerTrends = [
-    {'day': 'Mon', 'new': 4, 'returning': 12},
-    {'day': 'Tue', 'new': 6, 'returning': 14},
-    {'day': 'Wed', 'new': 8, 'returning': 16},
-    {'day': 'Thu', 'new': 5, 'returning': 18},
-    {'day': 'Fri', 'new': 10, 'returning': 24},
-    {'day': 'Sat', 'new': 15, 'returning': 30},
-    {'day': 'Sun', 'new': 11, 'returning': 26},
+    {'day': 'Mon', 'new': 0, 'returning': 0},
+    {'day': 'Tue', 'new': 0, 'returning': 0},
+    {'day': 'Wed', 'new': 0, 'returning': 0},
+    {'day': 'Thu', 'new': 0, 'returning': 0},
+    {'day': 'Fri', 'new': 0, 'returning': 0},
+    {'day': 'Sat', 'new': 0, 'returning': 0},
+    {'day': 'Sun', 'new': 0, 'returning': 0},
   ];
   
   @override

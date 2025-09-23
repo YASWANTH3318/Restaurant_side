@@ -177,66 +177,71 @@ class _LoginPageState extends State<LoginPage> {
         final email = _emailController.text.trim();
         final password = _passwordController.text;
         
-        // First try standard sign in without role checks
-        try {
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-          
-          // If successful, update the role if needed
-          await UserService.signInWithEmail(
-            email: email,
-            password: password,
-            role: _selectedRole,
-          );
-          
-          if (mounted) {
-            // Navigate based on role
-            switch (_selectedRole) {
-              case 'blogger':
-                Navigator.pushReplacementNamed(context, '/blogger-home');
-                break;
-              case 'restaurant':
-                Navigator.pushReplacementNamed(context, '/restaurant/home');
-                break;
-              case 'customer':
-              default:
-                Navigator.pushReplacementNamed(context, '/home');
-                break;
-            }
-          }
-        } on FirebaseAuthException catch (authError) {
-          if (authError.code == 'user-not-found' || authError.code == 'wrong-password') {
-            // Standard auth errors, show these to the user
-            if (mounted) {
-              setState(() {
-                if (authError.code == 'user-not-found') {
-                  _errorMessage = 'No user found with this email. Please sign up first.';
-                } else if (authError.code == 'wrong-password') {
-                  _errorMessage = 'Incorrect password. Please try again.';
-                } else {
-                  _errorMessage = authError.message ?? 'An error occurred during login';
-                }
-                _isLoading = false;
-              });
-            }
-          } else {
-            // Other auth errors
-            throw authError;
+        // Use UserService.signInWithEmail which handles both Firebase Auth and Firestore
+        final userCredential = await UserService.signInWithEmail(
+          email: email,
+          password: password,
+          role: _selectedRole,
+        );
+        
+        if (mounted) {
+          // Navigate based on role
+          switch (_selectedRole) {
+            case 'blogger':
+              Navigator.pushReplacementNamed(context, '/blogger-home');
+              break;
+            case 'restaurant':
+              Navigator.pushReplacementNamed(context, '/restaurant/home');
+              break;
+            case 'customer':
+            default:
+              Navigator.pushReplacementNamed(context, '/home');
+              break;
           }
         }
-      } catch (e) {
-        print('Login Error: $e');
+      } on FirebaseAuthException catch (authError) {
+        print('Firebase Auth Error: $authError');
         if (mounted) {
           setState(() {
-            _errorMessage = 'Login failed. Please check your credentials and try again.';
+            switch (authError.code) {
+              case 'user-not-found':
+                _errorMessage = 'No user found with this email. Please sign up first.';
+                break;
+              case 'wrong-password':
+                _errorMessage = 'Incorrect password. Please try again.';
+                break;
+              case 'invalid-email':
+                _errorMessage = 'Invalid email address. Please check your email.';
+                break;
+              case 'user-disabled':
+                _errorMessage = 'This account has been disabled. Please contact support.';
+                break;
+              case 'too-many-requests':
+                _errorMessage = 'Too many failed attempts. Please try again later.';
+                break;
+              default:
+                _errorMessage = authError.message ?? 'Authentication failed. Please try again.';
+            }
             _isLoading = false;
           });
         }
-      } finally {
+      } catch (e) {
+        print('Login Error: $e');
+        print('Error type: ${e.runtimeType}');
         if (mounted) {
           setState(() {
+            // Check for specific error types
+            if (e.toString().contains('network') || e.toString().contains('connection')) {
+              _errorMessage = 'Network error. Please check your internet connection.';
+            } else if (e.toString().contains('permission')) {
+              _errorMessage = 'Permission denied. Please contact support.';
+            } else if (e.toString().contains('timeout')) {
+              _errorMessage = 'Request timed out. Please try again.';
+            } else if (e.toString().contains('firestore') || e.toString().contains('database')) {
+              _errorMessage = 'Database error. Please try again later.';
+            } else {
+              _errorMessage = 'Login failed: ${e.toString()}';
+            }
             _isLoading = false;
           });
         }

@@ -52,7 +52,6 @@ class _SearchPageState extends State<SearchPage> {
   ];
 
   final List<String> _sortOptions = [
-    'distance',
     'price_low',
     'price_high',
   ];
@@ -75,7 +74,8 @@ class _SearchPageState extends State<SearchPage> {
     try {
       final results = await RestaurantService.searchRestaurants(
         query,
-        maxDistance: _sortBy == 'distance' ? _maxDistance : null,
+        // distance is no longer a sort option; handled via filters only
+        maxDistance: _maxDistance,
       );
       
       if (mounted) {
@@ -159,6 +159,7 @@ class _SearchPageState extends State<SearchPage> {
                             _selectedTags.clear();
                             _priceRange = const RangeValues(200, 5000);
                             _minRating = 0;
+                            _maxDistance = null;
                           });
                         },
                         child: const Text('Reset'),
@@ -282,6 +283,42 @@ class _SearchPageState extends State<SearchPage> {
                       });
                     },
                   ),
+                  const SizedBox(height: 16),
+
+                  // Maximum Distance
+                  const Text(
+                    'Maximum Distance (km)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: (_maxDistance ?? 0).clamp(0, 50),
+                          min: 0,
+                          max: 50,
+                          divisions: 50,
+                          label: _maxDistance == null ? 'Any' : (_maxDistance!.toStringAsFixed(0) + ' km'),
+                          onChanged: (value) {
+                            setModalState(() {
+                              _maxDistance = value == 0 ? null : value;
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 64,
+                        child: Text(
+                          _maxDistance == null ? 'Any' : '${_maxDistance!.toStringAsFixed(0)} km',
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   // Apply Button
@@ -327,17 +364,7 @@ class _SearchPageState extends State<SearchPage> {
             ...ListTile.divideTiles(
               context: context,
               tiles: _sortOptions.map(
-                (option) => option == 'distance'
-                    ? ListTile(
-                        title: const Text('Distance'),
-                        trailing: _sortBy == option
-                            ? const Icon(Icons.check, color: Colors.green)
-                            : null,
-                        onTap: () {
-                          _showDistanceInputDialog();
-                        },
-                      )
-                    : ListTile(
+                (option) => ListTile(
                         title: Text(
                           option.split('_').map((word) => 
                             word[0].toUpperCase() + word.substring(1)
@@ -492,11 +519,7 @@ class _SearchPageState extends State<SearchPage> {
                       child: OutlinedButton.icon(
                         onPressed: _showSortSheet,
                         icon: const Icon(Icons.sort),
-                        label: Text(
-                          _sortBy == 'distance' && _maxDistance != null
-                              ? 'Distance: $_maxDistance km'
-                              : 'Sort by ${_sortBy.split('_').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ')}',
-                        ),
+                        label: Text('Sort by ${_sortBy.split('_').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ')}'),
                       ),
                     ),
                   ],
@@ -585,7 +608,7 @@ class RestaurantCard extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
+                child: _buildSafeImage(
                   restaurant.image,
                   width: 100,
                   height: 100,
@@ -603,6 +626,8 @@ class RestaurantCard extends StatelessWidget {
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -610,6 +635,8 @@ class RestaurantCard extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.grey[600],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     FutureBuilder<ReviewStats>(
@@ -626,13 +653,21 @@ class RestaurantCard extends StatelessWidget {
                           children: [
                             Icon(Icons.star, color: Colors.amber[600], size: 20),
                             const SizedBox(width: 4),
-                            Text(
-                                '$rating ${reviewCount > 0 ? '($reviewCount)' : ''}'),
+                            Flexible(
+                              child: Text(
+                                '$rating ${reviewCount > 0 ? '($reviewCount)' : ''}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                             const SizedBox(width: 12),
-                            Icon(Icons.location_on,
-                                color: Colors.grey[600], size: 20),
+                            Icon(Icons.location_on, color: Colors.grey[600], size: 20),
                             const SizedBox(width: 4),
-                            Text(restaurant.distance),
+                            Flexible(
+                              child: Text(
+                                restaurant.distance,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         );
                       },
@@ -663,3 +698,31 @@ class RestaurantCard extends StatelessWidget {
     );
   }
 } 
+
+Widget _buildSafeImage(
+  String? url, {
+  double? width,
+  double? height,
+  BoxFit fit = BoxFit.cover,
+}) {
+  final String safeUrl = (url ?? '').trim();
+  final bool isValidNetwork = safeUrl.startsWith('http://') || safeUrl.startsWith('https://');
+
+  final Widget placeholder = Container(
+    width: width,
+    height: height,
+    color: Colors.grey[200],
+    alignment: Alignment.center,
+    child: Icon(Icons.broken_image, color: Colors.grey[500]),
+  );
+
+  return isValidNetwork
+      ? Image.network(
+          safeUrl,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => placeholder,
+        )
+      : placeholder;
+}

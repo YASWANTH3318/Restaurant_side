@@ -13,6 +13,7 @@ import '../pages/search_page.dart';
 import '../pages/complete_profile_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/blog_page.dart';
+import 'login_page.dart';
 import 'user/faq_page.dart';
 import 'notifications_page.dart';
 import 'user/address_list_page.dart';
@@ -129,7 +130,10 @@ class _HomePageState extends State<HomePage> {
     try {
       await UserService.signOut();
       if (context.mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
       }
     } catch (e) {
       print('Error signing out: $e');

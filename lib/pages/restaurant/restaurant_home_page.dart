@@ -8,6 +8,7 @@ import 'restaurant_orders_page.dart';
 import 'restaurant_profile_page.dart';
 import 'restaurant_analytics_page.dart';
 import 'restaurant_details_page.dart';
+import '../login_page.dart';
 
 class RestaurantHomePage extends StatefulWidget {
   const RestaurantHomePage({super.key});
@@ -30,7 +31,10 @@ class _RestaurantHomePageState extends State<RestaurantHomePage> {
     try {
       await UserService.signOut();
       if (context.mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
       }
     } catch (e) {
       print('Error signing out: $e');

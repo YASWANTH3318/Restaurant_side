@@ -219,6 +219,7 @@ class RestaurantService {
       // Convert user data to restaurant format
       final Map<String, dynamic> restaurantDoc = {
         'id': userId,
+        'ownerUserId': userId,
         'name': restaurantData['name'],
         'image': restaurantData['image'] ?? '',
         'cuisine': restaurantData['cuisineTypes']?.isNotEmpty == true 

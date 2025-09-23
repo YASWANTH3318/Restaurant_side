@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/user_service.dart';
+import '../login_page.dart';
 import '../../services/notification_service.dart';
 import 'blogger_dashboard_page.dart';
 import 'blogger_profile_page.dart';
@@ -32,7 +33,10 @@ class _BloggerHomePageState extends State<BloggerHomePage> {
     try {
       await UserService.signOut();
       if (context.mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
       }
     } catch (e) {
       print('Error signing out: $e');

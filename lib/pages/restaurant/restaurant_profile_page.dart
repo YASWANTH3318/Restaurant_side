@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/user_service.dart';
+import '../login_page.dart';
 import 'restaurant_details_page.dart';
 import 'business_hours_page.dart';
 import 'help_support_page.dart';
@@ -60,7 +61,10 @@ class _RestaurantProfilePageState extends State<RestaurantProfilePage> {
     try {
       await UserService.signOut();
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {

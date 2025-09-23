@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/user_service.dart';
+import '../login_page.dart';
 import 'edit_profile_page.dart';
 import 'notification_settings_page.dart';
 import 'account_settings_page.dart';
@@ -209,8 +210,10 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
           ],
 
           // Stats row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 24,
+            runSpacing: 16,
             children: [
               _buildStatItem('Posts', '0'),
               _buildStatItem('Followers', '0'),
@@ -286,7 +289,10 @@ class _BloggerProfilePageState extends State<BloggerProfilePage> {
                 try {
                   await UserService.signOut();
                   if (mounted) {
-                    Navigator.pushReplacementNamed(context, '/login');
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginPage()),
+                      (route) => false,
+                    );
                   }
                 } catch (e) {
                   print('Error signing out: $e');

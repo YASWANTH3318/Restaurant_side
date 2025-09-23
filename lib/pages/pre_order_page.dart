@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/restaurant.dart';
 import '../models/pre_order.dart';
 import '../services/pre_order_service.dart';
+import '../services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PreOrderPage extends StatefulWidget {
   final Restaurant restaurant;
@@ -236,13 +238,57 @@ class _PreOrderPageState extends State<PreOrderPage> {
         );
       }).toList();
 
-      await PreOrderService.createPreOrder(
+      final preOrder = await PreOrderService.createPreOrder(
         restaurantId: widget.restaurant.id,
         userId: widget.userId,
         reservationId: widget.reservationId,
         items: items,
         totalAmount: _calculateTotalAmount(),
       );
+
+      // Notifications for pre-order
+      try {
+        // Notify customer
+        await NotificationService.createNotification(
+          userId: widget.userId,
+          title: 'Pre-order Placed',
+          body: 'Your pre-order at ${widget.restaurant.name} has been placed',
+          type: 'order',
+          data: {
+            'reservationId': widget.reservationId,
+            'restaurantId': widget.restaurant.id,
+            'preOrderId': preOrder.id,
+            'totalAmount': preOrder.totalAmount,
+          },
+        );
+
+        // Determine owner user id
+        String ownerUserId = widget.restaurant.id;
+        try {
+          final doc = await FirebaseFirestore.instance.collection('restaurants').doc(widget.restaurant.id).get();
+          final data = doc.data();
+          if (data != null && data['ownerUserId'] is String) {
+            ownerUserId = data['ownerUserId'];
+          }
+        } catch (_) {}
+
+        // Notify restaurant owner
+        await NotificationService.createNotification(
+          userId: ownerUserId,
+          title: 'New Pre-order',
+          body: 'New pre-order received at ${widget.restaurant.name}',
+          type: 'order_received',
+          data: {
+            'reservationId': widget.reservationId,
+            'restaurantId': widget.restaurant.id,
+            'preOrderId': preOrder.id,
+            'totalAmount': preOrder.totalAmount,
+            'byUserId': widget.userId,
+          },
+        );
+      } catch (e) {
+        // Ignore notification errors
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
