@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'widgets/initialization_widget.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
-import 'pages/home_page.dart';
-import 'widgets/role_based_auth_guard.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 import 'pages/restaurant/restaurant_home_page.dart';
 import 'pages/restaurant/restaurant_details_page.dart';
 import 'pages/restaurant/restaurant_tables_page.dart';
-import 'pages/blogger/blogger_home_page.dart';
+import 'pages/restaurant/restaurant_notifications_page.dart';
+import 'pages/restaurant/restaurant_profile_setup_page.dart';
 import 'dart:async';
 
 Future<void> main() async {
@@ -79,74 +77,12 @@ class MyApp extends StatelessWidget {
       home: const LoginPage(),
       routes: {
         '/signup': (context) => const SignUpPage(),
-        '/home': (context) => const HomePage(),
         '/restaurant/home': (context) => const RestaurantHomePage(),
         '/restaurant/details': (context) => const RestaurantDetailsPage(),
         '/restaurant/tables': (context) => const RestaurantTablesPage(),
-        '/blogger-home': (context) => const BloggerHomePage(),
+        '/restaurant/notifications': (context) => const RestaurantNotificationsPage(),
+        '/restaurant/profile-setup': (context) => const RestaurantProfileSetupPage(),
       },
-    );
-  }
-}
-
-// Placeholder widgets for routes
-// You should create separate files for each of these pages
-class RestaurantListPage extends StatelessWidget {
-  const RestaurantListPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Restaurants')),
-      body: const Center(child: Text('Restaurant List Page')),
-    );
-  }
-}
-
-class RestaurantDetailsPage extends StatelessWidget {
-  const RestaurantDetailsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Restaurant Details')),
-      body: const Center(child: Text('Restaurant Details Page')),
-    );
-  }
-}
-
-class FavoritesPage extends StatelessWidget {
-  const FavoritesPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Favorites')),
-      body: const Center(child: Text('Favorites Page')),
-    );
-  }
-}
-
-class SearchPage extends StatelessWidget {
-  const SearchPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Search')),
-      body: const Center(child: Text('Search Page')),
-    );
-  }
-}
-
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: const Center(child: Text('Settings Page')),
     );
   }
 }

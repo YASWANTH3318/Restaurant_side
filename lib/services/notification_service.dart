@@ -1,230 +1,254 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/notification_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/date_format_util.dart';
+import '../config/restaurant_database_structure.dart';
 
 class NotificationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final CollectionReference _notificationsCollection =
-      _firestore.collection('notifications');
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Get all notifications for a user
-  static Future<List<NotificationModel>> getNotificationsForUser(String userId) async {
+  /// Create a notification for a restaurant when a table reservation is made
+  static Future<void> createReservationNotification({
+    required String restaurantId,
+    required String reservationId,
+    required String customerName,
+    required String reservationDate,
+    required String reservationTime,
+    required int numberOfGuests,
+    String? specialRequests,
+    String? tableType,
+  }) async {
     try {
-      final QuerySnapshot snapshot = await _notificationsCollection
-          .where('userId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .limit(50)
-          .get();
+      final notificationData = {
+        'type': 'reservation',
+        'title': 'New Table Reservation Request',
+        'message': '$customerName wants to reserve a table for $numberOfGuests guests on $reservationDate at $reservationTime',
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'reservationData': {
+          'id': reservationId,
+          'customerName': customerName,
+          'reservationDate': reservationDate,
+          'reservationTime': reservationTime,
+          'numberOfGuests': numberOfGuests,
+          'specialRequests': specialRequests,
+          'tableType': tableType,
+        },
+      };
 
-      return snapshot.docs
-          .map((doc) => NotificationModel.fromMap(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ))
-          .toList();
+      await _firestore
+          .collection(RestaurantDatabaseStructure.restaurants)
+          .doc(restaurantId)
+          .collection('notifications')
+          .add(notificationData);
+
+      print('Reservation notification created for restaurant: $restaurantId');
     } catch (e) {
-      print('Error getting notifications: $e');
-      return [];
+      print('Error creating reservation notification: $e');
+      rethrow;
     }
   }
 
-  // Get unread notifications count for a user
-  static Future<int> getUnreadNotificationsCount(String userId) async {
+  /// Create a notification for a restaurant when a food order is placed
+  static Future<void> createOrderNotification({
+    required String restaurantId,
+    required String orderId,
+    required String customerName,
+    required double totalAmount,
+    required List<Map<String, dynamic>> items,
+  }) async {
     try {
-      final QuerySnapshot snapshot = await _notificationsCollection
-          .where('userId', isEqualTo: userId)
-          .where('isRead', isEqualTo: false)
-          .get();
+      final itemNames = items.map((item) => item['name'] ?? 'Unknown Item').join(', ');
+      final notificationData = {
+        'type': 'order',
+        'title': 'New Food Order',
+        'message': '$customerName placed an order for ${DateFormatUtil.formatCurrencyIndian(totalAmount)} - $itemNames',
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'orderData': {
+          'id': orderId,
+          'customerName': customerName,
+          'totalAmount': totalAmount,
+          'items': items,
+        },
+      };
 
-      return snapshot.docs.length;
+      await _firestore
+          .collection(RestaurantDatabaseStructure.restaurants)
+          .doc(restaurantId)
+          .collection('notifications')
+          .add(notificationData);
+
+      print('Order notification created for restaurant: $restaurantId');
     } catch (e) {
-      print('Error getting unread notifications count: $e');
-      return 0;
+      print('Error creating order notification: $e');
+      rethrow;
     }
   }
 
-  // Mark a notification as read
+  /// Create a notification for a restaurant when a review is added
+  static Future<void> createReviewNotification({
+    required String restaurantId,
+    required String reviewId,
+    required String customerName,
+    required double rating,
+    String? reviewText,
+  }) async {
+    try {
+      final notificationData = {
+        'type': 'review',
+        'title': 'New Review Received',
+        'message': '$customerName gave you a ${rating.toStringAsFixed(1)} star rating${reviewText != null ? ' with a review' : ''}',
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'reviewData': {
+          'id': reviewId,
+          'customerName': customerName,
+          'rating': rating,
+          'reviewText': reviewText,
+        },
+      };
+
+      await _firestore
+          .collection(RestaurantDatabaseStructure.restaurants)
+          .doc(restaurantId)
+          .collection('notifications')
+          .add(notificationData);
+
+      print('Review notification created for restaurant: $restaurantId');
+    } catch (e) {
+      print('Error creating review notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Create a system notification for a restaurant
+  static Future<void> createSystemNotification({
+    required String restaurantId,
+    required String title,
+    required String message,
+    Map<String, dynamic>? additionalData,
+  }) async {
+    try {
+      final notificationData = {
+        'type': 'system',
+        'title': title,
+        'message': message,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        if (additionalData != null) ...additionalData,
+      };
+
+      await _firestore
+          .collection(RestaurantDatabaseStructure.restaurants)
+          .doc(restaurantId)
+          .collection('notifications')
+          .add(notificationData);
+
+      print('System notification created for restaurant: $restaurantId');
+    } catch (e) {
+      print('Error creating system notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Mark a notification as read
   static Future<void> markNotificationAsRead(String notificationId) async {
     try {
-      await _notificationsCollection.doc(notificationId).update({
-        'isRead': true,
-      });
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      await _firestore
+          .collection(RestaurantDatabaseStructure.restaurants)
+          .doc(user.uid)
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
+
+      print('Notification marked as read: $notificationId');
     } catch (e) {
       print('Error marking notification as read: $e');
+      rethrow;
     }
   }
 
-  // Mark all notifications as read for a user
-  static Future<void> markAllNotificationsAsRead(String userId) async {
+  /// Mark all notifications as read for the current restaurant
+  static Future<void> markAllNotificationsAsRead() async {
     try {
-      final WriteBatch batch = _firestore.batch();
-      final QuerySnapshot snapshot = await _notificationsCollection
-          .where('userId', isEqualTo: userId)
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final batch = _firestore.batch();
+      final notifications = await _firestore
+          .collection(RestaurantDatabaseStructure.restaurants)
+          .doc(user.uid)
+          .collection('notifications')
           .where('isRead', isEqualTo: false)
           .get();
 
-      for (final doc in snapshot.docs) {
+      for (final doc in notifications.docs) {
         batch.update(doc.reference, {'isRead': true});
       }
 
       await batch.commit();
+      print('All notifications marked as read');
     } catch (e) {
       print('Error marking all notifications as read: $e');
+      rethrow;
     }
   }
 
-  // Create a new notification
-  static Future<void> createNotification({
-    required String userId,
-    required String title,
-    required String body,
-    required String type,
-    Map<String, dynamic>? data,
-  }) async {
-    try {
-      await _notificationsCollection.add({
-        'userId': userId,
-        'title': title,
-        'body': body,
-        'type': type,
-        'timestamp': FieldValue.serverTimestamp(),
-        'isRead': false,
-        'data': data,
-      });
-    } catch (e) {
-      print('Error creating notification: $e');
-    }
+  /// Get unread notification count for the current restaurant
+  static Stream<int> getUnreadNotificationCount() {
+    final user = _auth.currentUser;
+    if (user == null) return Stream.value(0);
+
+    return _firestore
+        .collection(RestaurantDatabaseStructure.restaurants)
+        .doc(user.uid)
+        .collection('notifications')
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
   }
 
-  // Delete a notification
-  static Future<void> deleteNotification(String notificationId) async {
-    try {
-      await _notificationsCollection.doc(notificationId).delete();
-    } catch (e) {
-      print('Error deleting notification: $e');
-    }
+  /// Get all notifications for the current restaurant
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getNotifications() {
+    final user = _auth.currentUser;
+    if (user == null) return const Stream.empty();
+
+    return _firestore
+        .collection(RestaurantDatabaseStructure.restaurants)
+        .doc(user.uid)
+        .collection('notifications')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
-  // Delete all notifications for a user
-  static Future<void> deleteAllNotifications(String userId) async {
+  /// Delete old notifications (older than 30 days)
+  static Future<void> cleanupOldNotifications() async {
     try {
-      final WriteBatch batch = _firestore.batch();
-      final QuerySnapshot snapshot = await _notificationsCollection
-          .where('userId', isEqualTo: userId)
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
+      
+      final oldNotifications = await _firestore
+          .collection(RestaurantDatabaseStructure.restaurants)
+          .doc(user.uid)
+          .collection('notifications')
+          .where('createdAt', isLessThan: Timestamp.fromDate(thirtyDaysAgo))
           .get();
 
-      for (final doc in snapshot.docs) {
+      final batch = _firestore.batch();
+      for (final doc in oldNotifications.docs) {
         batch.delete(doc.reference);
       }
 
       await batch.commit();
+      print('Cleaned up ${oldNotifications.docs.length} old notifications');
     } catch (e) {
-      print('Error deleting all notifications: $e');
+      print('Error cleaning up old notifications: $e');
     }
-  }
-
-  // Create a like notification
-  static Future<void> createLikeNotification({
-    required String userId,
-    required String likerName,
-    required String postTitle,
-    required String postId,
-    required String likerId,
-  }) async {
-    await createNotification(
-      userId: userId,
-      title: 'New Like',
-      body: '$likerName liked your post "$postTitle"',
-      type: 'like',
-      data: {
-        'postId': postId,
-        'likerId': likerId,
-      },
-    );
-  }
-
-  // Create a follower notification
-  static Future<void> createFollowerNotification({
-    required String userId,
-    required String followerName,
-    required String followerId,
-  }) async {
-    await createNotification(
-      userId: userId,
-      title: 'New Follower',
-      body: '$followerName started following you',
-      type: 'follower',
-      data: {
-        'followerId': followerId,
-      },
-    );
-  }
-
-  // Create a comment notification
-  static Future<void> createCommentNotification({
-    required String userId,
-    required String commenterName,
-    required String postTitle,
-    required String postId,
-    required String commentId,
-    required String commentText,
-  }) async {
-    await createNotification(
-      userId: userId,
-      title: 'New Comment',
-      body: '$commenterName commented on your post: "$commentText"',
-      type: 'comment',
-      data: {
-        'postId': postId,
-        'commentId': commentId,
-      },
-    );
-  }
-
-  // Create a booking notification
-  static Future<void> createBookingNotification({
-    required String userId,
-    required String restaurantName,
-    required String bookingId,
-    required String restaurantId,
-    required DateTime bookingTime,
-    required int guestCount,
-  }) async {
-    // Use utility class for consistent formatting
-    final formattedDate = DateFormatUtil.formatDateIndian(bookingTime);
-    final formattedTime = DateFormatUtil.formatTimeIndian(bookingTime);
-    
-    await createNotification(
-      userId: userId,
-      title: 'Booking Confirmed',
-      body: 'Your table for $guestCount at $restaurantName on $formattedDate at $formattedTime has been confirmed',
-      type: 'booking',
-      data: {
-        'bookingId': bookingId,
-        'restaurantId': restaurantId,
-        'bookingTime': bookingTime.millisecondsSinceEpoch,
-        'guestCount': guestCount,
-      },
-    );
-  }
-
-  // Create a share notification
-  static Future<void> createShareNotification({
-    required String userId,
-    required String contentTitle,
-    required String contentType,
-    required String contentId,
-    required int shareCount,
-  }) async {
-    await createNotification(
-      userId: userId,
-      title: 'Content Shared',
-      body: 'Your $contentType "$contentTitle" was shared $shareCount times',
-      type: 'share',
-      data: {
-        '${contentType}Id': contentId,
-        'shareCount': shareCount,
-      },
-    );
   }
 } 

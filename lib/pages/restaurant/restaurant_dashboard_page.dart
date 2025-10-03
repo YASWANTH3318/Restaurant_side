@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:greedy_bites/pages/restaurant/restaurant_menu_page.dart';
-import 'package:greedy_bites/pages/restaurant/restaurant_orders_page.dart';
-import 'package:greedy_bites/pages/restaurant/restaurant_profile_page.dart';
-import 'package:greedy_bites/pages/restaurant/restaurant_analytics_page.dart';
-import 'package:greedy_bites/pages/restaurant/restaurant_activity_page.dart';
 import 'package:greedy_bites/pages/restaurant/restaurant_tables_page.dart';
 import '../../utils/date_format_util.dart';
 
@@ -35,6 +30,31 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
     super.initState();
     _setGreeting();
     _loadRestaurantData();
+  }
+
+  String _formatRelativeTime(DateTime when) {
+    final Duration diff = DateTime.now().difference(when);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min${diff.inMinutes == 1 ? '' : 's'} ago';
+    if (diff.inHours < 24) return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago';
+    if (diff.inDays < 7) return '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} ago';
+    final int weeks = (diff.inDays / 7).floor();
+    return '$weeks week${weeks == 1 ? '' : 's'} ago';
+  }
+
+  _IconColor _iconForActivity(String type) {
+    switch (type) {
+      case 'order_created':
+        return _IconColor(Icons.receipt_long, Colors.blue);
+      case 'order_completed':
+        return _IconColor(Icons.check_circle, Colors.green);
+      case 'review_added':
+        return _IconColor(Icons.star, Colors.amber);
+      case 'table_updated':
+        return _IconColor(Icons.table_restaurant, Colors.teal);
+      default:
+        return _IconColor(Icons.notifications, Colors.grey);
+    }
   }
   
   void _setGreeting() {
@@ -170,70 +190,35 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 24),
-              
-              // Management section
-              const Text(
-                'Management',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Management cards
-              GridView.count(
-                crossAxisCount: 3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.95,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+
+              // Place the Tables shortcut under the Rating card (right column) styled like stat cards
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  _buildManagementCard(
-                    'Activity',
-                    'Recent updates',
-                    Icons.history,
-                    Colors.purple,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RestaurantActivityPage()),
-                    ),
-                  ),
-                  _buildManagementCard(
-                    'Orders',
-                    'Track orders',
-                    Icons.receipt_long,
-                    Colors.blue,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RestaurantOrdersPage()),
-                    ),
-                  ),
-                  _buildManagementCard(
-                    'Analytics',
-                    'View stats',
-                    Icons.analytics,
-                    Colors.purple,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RestaurantAnalyticsPage()),
-                    ),
-                  ),
-                  _buildManagementCard(
-                    'Tables',
-                    'Manage tables',
-                    Icons.table_restaurant,
-                    Colors.teal,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RestaurantTablesPage()),
+                  const Expanded(child: SizedBox()),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RestaurantTablesPage(),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: _buildStatCard(
+                        'Tables',
+                        'Manage',
+                        Icons.table_restaurant,
+                        Colors.teal,
+                      ),
                     ),
                   ),
                 ],
               ),
+              
+              const SizedBox(height: 24),
               
               const SizedBox(height: 24),
               
@@ -258,27 +243,67 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
               ),
               const SizedBox(height: 8),
               
-              // Recent activities list
-              _buildActivityItem(
-                'New Order #1234',
-                'John Doe placed a new order',
-                '10 mins ago',
-                Icons.receipt,
-                Colors.blue,
-              ),
-              _buildActivityItem(
-                'Order #1230 Completed',
-                'Order was successfully delivered',
-                '1 hour ago',
-                Icons.check_circle,
-                Colors.green,
-              ),
-              _buildActivityItem(
-                'New Review',
-                'Sarah gave your restaurant 5 stars',
-                '3 hours ago',
-                Icons.star,
-                Colors.amber,
+              // Recent activities list (dynamic)
+              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _auth.currentUser == null
+                    ? const Stream.empty()
+                    : _firestore
+                        .collection('restaurants')
+                        .doc(_auth.currentUser!.uid)
+                        .collection('activities')
+                        .orderBy('createdAt', descending: true)
+                        .limit(10)
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        'Failed to load activity',
+                        style: TextStyle(color: Colors.red[400]),
+                      ),
+                    );
+                  }
+
+                  final docs = snapshot.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        'No recent activity yet',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: docs.map((d) {
+                      final data = d.data();
+                      final String title = (data['title'] as String?) ?? 'Activity';
+                      final String subtitle = (data['subtitle'] as String?) ?? '';
+                      final Timestamp? ts = data['createdAt'] as Timestamp?;
+                      final DateTime when = ts?.toDate() ?? DateTime.now();
+                      final String time = _formatRelativeTime(when);
+                      final String type = (data['type'] as String?) ?? 'generic';
+                      final _IconColor iconColor = _iconForActivity(type);
+
+                      return _buildActivityItem(
+                        title,
+                        subtitle,
+                        time,
+                        iconColor.icon,
+                        iconColor.color,
+                      );
+                    }).toList(),
+                  );
+                },
               ),
             ],
           ),
@@ -462,3 +487,9 @@ class _RestaurantDashboardPageState extends State<RestaurantDashboardPage> {
     );
   }
 } 
+
+class _IconColor {
+  final IconData icon;
+  final Color color;
+  const _IconColor(this.icon, this.color);
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
+import '../services/restaurant_auth_service.dart';
 import '../models/user_model.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,7 +19,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   String? _errorMessage;
-  String _selectedRole = 'customer'; // Default role
+  String _selectedRole = 'restaurant';
 
   Future<void> _handleGoogleSignIn() async {
     if (!mounted) return;
@@ -29,13 +30,13 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // Get Google user
-      final googleUser = await UserService.getGoogleUser();
+      print('Starting Google Sign-In flow...');
       
-      // Debug output
-      print('Google Sign-In Status: ${googleUser != null ? 'User selected' : 'Cancelled'}');
+      // Proceed with restaurant sign-in directly
+      final userCredential = await RestaurantAuthService.signInWithGoogleRestaurant();
       
-      if (googleUser == null) {
+      if (userCredential == null) {
+        if (!mounted) return;
         setState(() {
           _isLoading = false;
           _errorMessage = 'Google sign-in was cancelled.';
@@ -43,63 +44,12 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       
-      print('Google Sign-In Email: ${googleUser.email}');
-      
-      // Check if this email is already used with a different role
-      final bool emailUsedWithDifferentRole = await UserService.isEmailUsedWithRole(googleUser.email, _selectedRole);
-      if (emailUsedWithDifferentRole) {
-        // Show a dialog to confirm role change
-        if (!mounted) return;
-        
-        final bool? confirm = await showDialog<bool>(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Account Exists'),
-              content: const Text(
-                'This email is already registered with a different role. Would you like to add this role to your account?',
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(context).pop(false),
-                ),
-                TextButton(
-                  child: const Text('Add Role'),
-                  onPressed: () => Navigator.of(context).pop(true),
-                ),
-              ],
-            );
-          },
-        );
-        
-        if (confirm != true) {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = 'Sign-in cancelled.';
-          });
-          return;
-        }
-      }
-      
-      // Proceed with sign-in
-      final userCredential = await UserService.signInWithGoogle(role: _selectedRole);
+      print('Google Sign-In successful, navigating to restaurant home...');
       
       if (!mounted) return;
       
-      // Navigate based on role
-      switch (_selectedRole) {
-        case 'blogger':
-          Navigator.pushReplacementNamed(context, '/blogger-home');
-          break;
-        case 'restaurant':
-          Navigator.pushReplacementNamed(context, '/restaurant/home');
-          break;
-        case 'customer':
-        default:
-          Navigator.pushReplacementNamed(context, '/home');
-          break;
-      }
+      // Restaurant-only navigation
+      Navigator.pushReplacementNamed(context, '/restaurant/home');
     } catch (e) {
       print('Google Sign-In Error: $e');
       
@@ -108,9 +58,9 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         if (e.toString().contains('account-exists-with-different-credential')) {
           _errorMessage = 'This email is already used with a different sign-in method. Try another login method.';
-        } else if (e.toString().contains('ERROR_ABORTED_BY_USER')) {
+        } else if (e.toString().contains('ERROR_ABORTED_BY_USER') || e.toString().contains('cancelled')) {
           _errorMessage = 'Google sign-in was cancelled by user.';
-        } else if (e.toString().contains('network_error')) {
+        } else if (e.toString().contains('network_error') || e.toString().contains('network')) {
           _errorMessage = 'Network error. Please check your internet connection.';
         } else if (e.toString().contains('invalid-credential')) {
           _errorMessage = 'Unable to authenticate with Google. Please try again.';
@@ -128,8 +78,12 @@ class _LoginPageState extends State<LoginPage> {
           _errorMessage = 'Google Sign-In was canceled. Please try again.';
         } else if (e.toString().contains('sign_in_required')) {
           _errorMessage = 'Please sign in to continue.';
+        } else if (e.toString().contains('permission-denied')) {
+          _errorMessage = 'Database permission denied. Please contact support.';
+        } else if (e.toString().contains('Failed to set up restaurant account')) {
+          _errorMessage = 'Failed to set up restaurant account. Please contact support.';
         } else {
-          _errorMessage = 'Failed to sign in: ${e.toString()}';
+          _errorMessage = 'Google Sign-In failed: ${e.toString()}';
         }
         _isLoading = false;
       });
@@ -177,26 +131,45 @@ class _LoginPageState extends State<LoginPage> {
         final email = _emailController.text.trim();
         final password = _passwordController.text;
         
-        // Use UserService.signInWithEmail which handles both Firebase Auth and Firestore
-        final userCredential = await UserService.signInWithEmail(
+        // Use RestaurantAuthService for restaurant authentication
+        final result = await RestaurantAuthService.signInRestaurant(
           email: email,
           password: password,
-          role: _selectedRole,
         );
         
         if (mounted) {
-          // Navigate based on role
-          switch (_selectedRole) {
-            case 'blogger':
-              Navigator.pushReplacementNamed(context, '/blogger-home');
-              break;
-            case 'restaurant':
+          if (result['success'] == true) {
+            if (result['needsProfileSetup'] == true) {
+              // New user - redirect to profile setup
+              final isNewUser = result['isNewUser'] ?? false;
+              final message = result['message'] ?? 'Please complete your restaurant profile setup';
+              
+              // Show a brief message about what's happening
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(isNewUser ? 'Welcome! Setting up your restaurant account...' : message),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              
+              Navigator.pushReplacementNamed(context, '/restaurant/profile-setup');
+            } else {
+              // Existing user - go to home
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Welcome back!'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 1),
+                ),
+              );
               Navigator.pushReplacementNamed(context, '/restaurant/home');
-              break;
-            case 'customer':
-            default:
-              Navigator.pushReplacementNamed(context, '/home');
-              break;
+            }
+          } else {
+            setState(() {
+              _errorMessage = result['error'] ?? 'Login failed. Please try again.';
+              _isLoading = false;
+            });
           }
         }
       } on FirebaseAuthException catch (authError) {
@@ -205,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
           setState(() {
             switch (authError.code) {
               case 'user-not-found':
-                _errorMessage = 'No user found with this email. Please sign up first.';
+                _errorMessage = 'No account found with this email. Please sign up first.';
                 break;
               case 'wrong-password':
                 _errorMessage = 'Incorrect password. Please try again.';
@@ -219,6 +192,9 @@ class _LoginPageState extends State<LoginPage> {
               case 'too-many-requests':
                 _errorMessage = 'Too many failed attempts. Please try again later.';
                 break;
+              case 'invalid-credential':
+                _errorMessage = 'The supplied auth credentials are incorrect, malformed or has expired. Please try again or contact support if the issue persists.';
+                break;
               default:
                 _errorMessage = authError.message ?? 'Authentication failed. Please try again.';
             }
@@ -231,7 +207,13 @@ class _LoginPageState extends State<LoginPage> {
         if (mounted) {
           setState(() {
             // Check for specific error types
-            if (e.toString().contains('network') || e.toString().contains('connection')) {
+            if (e.toString().contains('Failed to set up restaurant account')) {
+              _errorMessage = 'Failed to set up restaurant account. Please try again or contact support.';
+            } else if (e.toString().contains('User is not authorized for restaurant access')) {
+              _errorMessage = 'This account is not authorized for restaurant access. Please contact support.';
+            } else if (e.toString().contains('Restaurant account is deactivated')) {
+              _errorMessage = 'Your restaurant account has been deactivated. Please contact support.';
+            } else if (e.toString().contains('network') || e.toString().contains('connection')) {
               _errorMessage = 'Network error. Please check your internet connection.';
             } else if (e.toString().contains('permission')) {
               _errorMessage = 'Permission denied. Please contact support.';
@@ -283,45 +265,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Select Your Role',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Role selection segment
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(
-                        value: 'customer',
-                        label: Text('Customer'),
-                        icon: Icon(Icons.person),
-                      ),
-                      ButtonSegment(
-                        value: 'blogger',
-                        label: Text('Blogger'),
-                        icon: Icon(Icons.edit),
-                      ),
-                      ButtonSegment(
-                        value: 'restaurant',
-                        label: Text('Restaurant'),
-                        icon: Icon(Icons.restaurant),
-                      ),
-                    ],
-                    selected: {_selectedRole},
-                    onSelectionChanged: (Set<String> newSelection) {
-                      setState(() {
-                        _selectedRole = newSelection.first;
-                      });
-                    },
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  
+                  // Restaurant-only app
                   const SizedBox(height: 24),
                   if (_errorMessage != null)
                     Padding(
@@ -406,9 +350,9 @@ class _LoginPageState extends State<LoginPage> {
                                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
-                          : Text(
-                              'Login as ${_selectedRole.substring(0, 1).toUpperCase() + _selectedRole.substring(1)}',
-                              style: const TextStyle(fontSize: 16),
+                          : const Text(
+                              'Login',
+                              style: TextStyle(fontSize: 16),
                             ),
                     ),
                   ),
@@ -431,7 +375,7 @@ class _LoginPageState extends State<LoginPage> {
                         size: 24,
                         color: Colors.red,
                       ),
-                      label: Text('Sign in with Google as ${_selectedRole.substring(0, 1).toUpperCase() + _selectedRole.substring(1)}'),
+                      label: const Text('Sign in with Google'),
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

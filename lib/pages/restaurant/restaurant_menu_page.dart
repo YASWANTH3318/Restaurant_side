@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../services/restaurant_service.dart';
+import '../../utils/date_format_util.dart';
 
 class RestaurantMenuPage extends StatefulWidget {
   const RestaurantMenuPage({super.key});
@@ -13,11 +17,13 @@ class RestaurantMenuPage extends StatefulWidget {
 class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _menuItems = [];
+  List<Map<String, dynamic>> _menuPhotos = [];
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   String _selectedCategory = 'Main Course';
+  final ImagePicker _imagePicker = ImagePicker();
 
   final List<String> _categories = [
     'Starters',
@@ -31,6 +37,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
   void initState() {
     super.initState();
     _loadMenuItems();
+    _loadMenuPhotos();
   }
 
   @override
@@ -80,6 +87,34 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _loadMenuPhotos() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(user.uid)
+          .collection('menu_photos')
+          .where('isActive', isEqualTo: true)
+          .orderBy('uploadedAt', descending: true)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _menuPhotos = snapshot.docs
+              .map((doc) => {
+                    'id': doc.id,
+                    ...doc.data(),
+                  })
+              .toList();
+        });
+      }
+    } catch (e) {
+      print('Error loading menu photos: $e');
     }
   }
 
@@ -349,6 +384,154 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
     );
   }
 
+  Future<void> _addMenuPhoto() async {
+    try {
+      // Show options for camera or gallery
+      final ImageSource? source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take Photo'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null) return;
+
+      // Pick image
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      setState(() => _isLoading = true);
+
+      // Upload to Firebase Storage
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final fileName = 'menu_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('restaurants')
+          .child(user.uid)
+          .child('menu_photos')
+          .child(fileName);
+
+      final uploadTask = ref.putFile(File(image.path));
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // Save menu photo info to Firestore
+      await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(user.uid)
+          .collection('menu_photos')
+          .add({
+        'imageUrl': downloadUrl,
+        'fileName': fileName,
+        'uploadedAt': FieldValue.serverTimestamp(),
+        'isActive': true,
+      });
+
+      // Refresh menu photos
+      await _loadMenuPhotos();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Menu photo added successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding menu photo: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _deleteMenuPhoto(String photoId) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Get photo data to delete from storage
+      final photoDoc = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(user.uid)
+          .collection('menu_photos')
+          .doc(photoId)
+          .get();
+
+      if (photoDoc.exists) {
+        final photoData = photoDoc.data()!;
+        final fileName = photoData['fileName'];
+
+        // Delete from Firebase Storage
+        if (fileName != null) {
+          try {
+            await FirebaseStorage.instance
+                .ref()
+                .child('restaurants')
+                .child(user.uid)
+                .child('menu_photos')
+                .child(fileName)
+                .delete();
+          } catch (e) {
+            print('Error deleting from storage: $e');
+          }
+        }
+
+        // Delete from Firestore
+        await FirebaseFirestore.instance
+            .collection('restaurants')
+            .doc(user.uid)
+            .collection('menu_photos')
+            .doc(photoId)
+            .delete();
+
+        // Refresh menu photos
+        await _loadMenuPhotos();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Menu photo deleted successfully')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting menu photo: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -356,80 +539,210 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
     }
 
     return Scaffold(
-      body: _menuItems.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.restaurant_menu,
-                    size: 64,
-                    color: Colors.grey,
+      appBar: AppBar(
+        title: const Text('Menu Management'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Menu Items Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Menu Items',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No menu items yet',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Add your first menu item',
-                    style: TextStyle(
+                ),
+                ElevatedButton.icon(
+                  onPressed: _showAddItemDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Item'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            if (_menuItems.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.restaurant_menu,
+                      size: 48,
                       color: Colors.grey,
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _showAddItemDialog,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Item'),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _menuItems.length,
-              itemBuilder: (context, index) {
-                final item = _menuItems[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: ListTile(
-                    title: Text(
-                      item['name'],
-                      style: const TextStyle(
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No menu items yet',
+                      style: TextStyle(
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Add your first menu item to get started',
+                      style: TextStyle(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ..._menuItems.map((item) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  title: Text(
+                    item['name'],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item['description']),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormatUtil.formatCurrencyIndian((item['price'] as num).toDouble()),
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  trailing: Switch(
+                    value: item['isAvailable'] ?? true,
+                    onChanged: (value) =>
+                        _toggleItemAvailability(item['id'], item['isAvailable']),
+                  ),
+                ),
+              )),
+            
+            const SizedBox(height: 32),
+            
+            // Menu Photos Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Menu Photos',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _addMenuPhoto,
+                  icon: const Icon(Icons.add_a_photo),
+                  label: const Text('Add Photo'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            if (_menuPhotos.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.photo_library,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No menu photos yet',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Add photos of your menu to showcase your dishes',
+                      style: TextStyle(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1,
+                ),
+                itemCount: _menuPhotos.length,
+                itemBuilder: (context, index) {
+                  final photo = _menuPhotos[index];
+                  return Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
                       children: [
-                        Text(item['description']),
-                        const SizedBox(height: 4),
-                        Text(
-                          '₹${item['price'].toString()}',
-                          style: const TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                        Image.network(
+                          photo['imageUrl'],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[200],
+                              child: const Icon(
+                                Icons.broken_image,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
+                            );
+                          },
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.white, size: 20),
+                              onPressed: () => _deleteMenuPhoto(photo['id']),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    trailing: Switch(
-                      value: item['isAvailable'] ?? true,
-                      onChanged: (value) =>
-                          _toggleItemAvailability(item['id'], item['isAvailable']),
-                    ),
-                  ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddItemDialog,
-        child: const Icon(Icons.add),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../utils/date_format_util.dart';
 import 'table_booking_analytics_page.dart';
 
@@ -11,8 +14,11 @@ class RestaurantAnalyticsPage extends StatefulWidget {
 }
 
 class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with SingleTickerProviderStateMixin {
-  bool _isLoading = false;
+  bool _isLoading = true;
   late TabController _tabController;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _metricsSub;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   // Defaults start from 0 for new restaurants
   List<double> _weeklyRevenue = [0, 0, 0, 0, 0, 0, 0];
@@ -32,17 +38,115 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
     {'day': 'Sat', 'new': 0, 'returning': 0},
     {'day': 'Sun', 'new': 0, 'returning': 0},
   ];
+  // Orders analytics
+  int _ordersCount = 0;
+  double _totalRevenueValue = 0;
+  double _averageOrderValue = 0;
+  Map<String, double> _orderTypes = { 'Dine-in': 0, 'Takeaway': 0 };
+  List<double> _orderTimes = [8, 12, 25, 18, 20, 28, 22];
+  Map<String, int> _orderStatuses = { 'Completed': 0, 'In Progress': 0, 'Cancelled': 0 };
+  int _reviewsCount = 0;
+  int _averageOrderMinutes = 0;
   
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _startMetricsStream();
   }
   
   @override
   void dispose() {
+    _metricsSub?.cancel();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _startMetricsStream() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      setState(() { _isLoading = false; });
+      return;
+    }
+    _metricsSub = _firestore
+        .collection('restaurants')
+        .doc(user.uid)
+        .collection('analytics')
+        .doc('metrics')
+        .snapshots()
+        .listen((doc) {
+      final data = doc.data();
+      setState(() {
+        // Weekly revenue
+        final List<dynamic>? wr = data?['weeklyRevenue'] as List<dynamic>?;
+        _weeklyRevenue = wr?.map((e) => (e as num).toDouble()).toList() ?? _weeklyRevenue;
+
+        // Totals
+        _totalRevenueValue = (data?['totalRevenue'] as num?)?.toDouble() ?? _totalRevenueValue;
+        _ordersCount = (data?['ordersCount'] as num?)?.toInt() ?? _ordersCount;
+        _averageOrderValue = (data?['averageOrderValue'] as num?)?.toDouble() ?? (_ordersCount > 0 ? _totalRevenueValue / _ordersCount : 0);
+
+        // Category revenue
+        final Map<String, dynamic>? cr = data?['categoryRevenue'] as Map<String, dynamic>?;
+        if (cr != null) {
+          _categoryRevenue = cr.map((k, v) => MapEntry(k, (v as num).toDouble()));
+        }
+
+        // Top items
+        final List<dynamic>? ti = data?['topSellingItems'] as List<dynamic>?;
+        _topSellingItems = ti?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? _topSellingItems;
+
+        // Customer trends
+        final List<dynamic>? ct = data?['customerTrends'] as List<dynamic>?;
+        if (ct != null && ct.isNotEmpty) {
+          _customerTrends = ct.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+
+        // Order types
+        final Map<String, dynamic>? ot = data?['orderTypes'] as Map<String, dynamic>?;
+        if (ot != null) {
+          _orderTypes = ot.map((k, v) => MapEntry(k, (v as num).toDouble()));
+        }
+
+        // Order times (7 slots)
+        final List<dynamic>? times = data?['orderTimes'] as List<dynamic>?;
+        _orderTimes = times?.map((e) => (e as num).toDouble()).toList() ?? _orderTimes;
+
+        // Statuses
+        final Map<String, dynamic>? st = data?['orderStatuses'] as Map<String, dynamic>?;
+        if (st != null) {
+          _orderStatuses = st.map((k, v) => MapEntry(k, (v as num).toInt()));
+        }
+
+        // Reviews count
+        _reviewsCount = (data?['reviewsCount'] as num?)?.toInt() ?? _reviewsCount;
+
+        // Average order time in minutes
+        _averageOrderMinutes = (data?['averageOrderMinutes'] as num?)?.toInt() ?? _averageOrderMinutes;
+
+        _isLoading = false;
+      });
+    }, onError: (_) {
+      setState(() { _isLoading = false; });
+    });
+  }
+
+  String _computeRetentionRate() {
+    final int newCustomers = _customerTrends.fold<int>(0, (sum, d) => sum + (d['new'] as num).toInt());
+    final int returningCustomers = _customerTrends.fold<int>(0, (sum, d) => sum + (d['returning'] as num).toInt());
+    final int total = newCustomers + returningCustomers;
+    if (total <= 0) return '0%';
+    final double rate = (returningCustomers / total) * 100.0;
+    return '${rate.toStringAsFixed(0)}%';
+  }
+
+  String _getReviewsCountText() {
+    return _reviewsCount.toString();
+  }
+
+  String _computeAverageOrderTimeText() {
+    if (_averageOrderMinutes <= 0) return '—';
+    return '${_averageOrderMinutes} min';
   }
 
   @override
@@ -141,10 +245,10 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'Total Revenue',
-                  DateFormatUtil.formatCurrencyIndian(26400.0),
+                  DateFormatUtil.formatCurrencyIndian(_totalRevenueValue),
                   Icons.attach_money,
                   Colors.green,
-                  '+12.5% vs last week',
+                  '',
                 ),
               ),
             ],
@@ -157,20 +261,20 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'Average Order',
-                  DateFormatUtil.formatCurrencyIndian(458.0),
+                  DateFormatUtil.formatCurrencyIndian(_averageOrderValue),
                   Icons.receipt_long,
                   Colors.blue,
-                  '+3.2% vs last week',
+                  '',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
                   'Orders',
-                  '158',
+                  _ordersCount.toString(),
                   Icons.shopping_cart,
                   Colors.orange,
-                  '+8.7% vs last week',
+                  '',
                 ),
               ),
             ],
@@ -242,6 +346,9 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
             ),
             child: Column(
               children: [
+                if (_topSellingItems.isEmpty)
+                  const Text('No data yet', style: TextStyle(color: Colors.grey))
+                else
                 for (var item in _topSellingItems)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -309,9 +416,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
             ),
             child: Column(
               children: [
-                _buildLowPerformingItem('Vegetarian Pizza', 12, -15),
-                _buildLowPerformingItem('Garden Salad', 8, -25),
-                _buildLowPerformingItem('Vanilla Milkshake', 10, -12),
+                const Text('No data yet', style: TextStyle(color: Colors.grey)),
               ],
             ),
           ),
@@ -328,21 +433,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
           ),
           const SizedBox(height: 16),
           
-          _buildRecommendationCard(
-            'Consider a promotion for Vegetarian Pizza',
-            'It has 15% lower sales compared to last month',
-            Icons.local_offer,
-            Colors.amber,
-          ),
-          
-          const SizedBox(height: 12),
-          
-          _buildRecommendationCard(
-            'Add new dessert options',
-            'Desserts have the highest profit margin in your menu',
-            Icons.cake,
-            Colors.pink,
-          ),
+          const Text('No recommendations yet', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -390,20 +481,20 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'New Customers',
-                  '59',
+                  _customerTrends.fold<int>(0, (sum, d) => sum + (d['new'] as num).toInt()).toString(),
                   Icons.person_add,
                   Colors.purple,
-                  '+12.5% vs last week',
+                  '',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
                   'Returning Customers',
-                  '160',
+                  _customerTrends.fold<int>(0, (sum, d) => sum + (d['returning'] as num).toInt()).toString(),
                   Icons.people,
                   Colors.teal,
-                  '+7.2% vs last week',
+                  '',
                 ),
               ),
             ],
@@ -416,20 +507,20 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'Retention Rate',
-                  '73%',
+                  _computeRetentionRate(),
                   Icons.repeat,
                   Colors.blue,
-                  '+3.5% vs last week',
+                  '',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
                   'Reviews',
-                  '48',
+                  _getReviewsCountText(),
                   Icons.star,
                   Colors.amber,
-                  '+15.2% vs last week',
+                  '',
                 ),
               ),
             ],
@@ -488,20 +579,20 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
               Expanded(
                 child: _buildStatCard(
                   'Total Orders',
-                  '158',
+                  _ordersCount.toString(),
                   Icons.receipt_long,
                   Colors.blue,
-                  '+8.7% vs last week',
+                  '',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
                   'Average Time',
-                  '24 min',
+                  _computeAverageOrderTimeText(),
                   Icons.access_time,
                   Colors.orange,
-                  '-2.3 min vs last week',
+                  '',
                 ),
               ),
             ],
@@ -601,15 +692,15 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
           Row(
             children: [
               Expanded(
-                child: _buildOrderStatusCard('Completed', 132, Colors.green),
+                child: _buildOrderStatusCard('Completed', _orderStatuses['Completed'] ?? 0, Colors.green),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildOrderStatusCard('In Progress', 15, Colors.blue),
+                child: _buildOrderStatusCard('In Progress', _orderStatuses['In Progress'] ?? 0, Colors.blue),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildOrderStatusCard('Cancelled', 11, Colors.red),
+                child: _buildOrderStatusCard('Cancelled', _orderStatuses['Cancelled'] ?? 0, Colors.red),
               ),
             ],
           ),
@@ -835,7 +926,9 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   
   Widget _buildOrderTypesChart() {
     // Using sample data for visualization
-    bool hasData = true; // Changed to true to show the chart
+    final double dineIn = _orderTypes['Dine-in'] ?? 0;
+    final double takeaway = _orderTypes['Takeaway'] ?? 0;
+    bool hasData = dineIn + takeaway > 0;
     
     if (!hasData) {
       return Center(
@@ -864,8 +957,8 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
         sections: [
           PieChartSectionData(
             color: Colors.orange,
-            value: 65.0,
-            title: '65%',
+            value: dineIn,
+            title: dineIn + takeaway > 0 ? '${(dineIn/(dineIn+takeaway)*100).toStringAsFixed(0)}%' : '',
             radius: 100,
             titleStyle: const TextStyle(
               fontSize: 14,
@@ -875,8 +968,8 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
           ),
           PieChartSectionData(
             color: Colors.blue,
-            value: 35.0,
-            title: '35%',
+            value: takeaway,
+            title: dineIn + takeaway > 0 ? '${(takeaway/(dineIn+takeaway)*100).toStringAsFixed(0)}%' : '',
             radius: 100,
             titleStyle: const TextStyle(
               fontSize: 14,
@@ -890,8 +983,7 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
   }
   
   Widget _buildOrderTimesChart() {
-    // Using sample data for visualization
-    bool hasData = true; // Changed to true to show the chart
+    bool hasData = _orderTimes.any((v) => v > 0);
     
     if (!hasData) {
       return Center(
@@ -945,36 +1037,10 @@ class _RestaurantAnalyticsPageState extends State<RestaurantAnalyticsPage> with 
         ),
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
-        barGroups: [
-          BarChartGroupData(
-            x: 0,
-            barRods: [BarChartRodData(toY: 8.0, color: Colors.blue, width: 20)],
-          ),
-          BarChartGroupData(
-            x: 1,
-            barRods: [BarChartRodData(toY: 12.0, color: Colors.blue, width: 20)],
-          ),
-          BarChartGroupData(
-            x: 2,
-            barRods: [BarChartRodData(toY: 25.0, color: Colors.blue, width: 20)],
-          ),
-          BarChartGroupData(
-            x: 3,
-            barRods: [BarChartRodData(toY: 18.0, color: Colors.blue, width: 20)],
-          ),
-          BarChartGroupData(
-            x: 4,
-            barRods: [BarChartRodData(toY: 20.0, color: Colors.blue, width: 20)],
-          ),
-          BarChartGroupData(
-            x: 5,
-            barRods: [BarChartRodData(toY: 28.0, color: Colors.blue, width: 20)],
-          ),
-          BarChartGroupData(
-            x: 6,
-            barRods: [BarChartRodData(toY: 22.0, color: Colors.blue, width: 20)],
-          ),
-        ],
+        barGroups: List.generate(7, (i) => BarChartGroupData(
+          x: i,
+          barRods: [BarChartRodData(toY: (i < _orderTimes.length ? _orderTimes[i] : 0), color: Colors.blue, width: 20)],
+        )),
       ),
     );
   }

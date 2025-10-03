@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/date_format_util.dart';
+import '../../services/notification_service.dart';
 
 class RestaurantOrdersPage extends StatefulWidget {
   const RestaurantOrdersPage({super.key});
@@ -14,20 +15,12 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
   late TabController _tabController;
   bool _isLoading = false;
   String _selectedFoodOrderStatus = 'pending';
-  final Map<int, TextEditingController> _capacityCtrls = {
-    2: TextEditingController(text: '0'),
-    4: TextEditingController(text: '0'),
-    6: TextEditingController(text: '0'),
-    8: TextEditingController(text: '0'),
-  };
   
   // Food Orders Data
   List<Map<String, dynamic>> _foodOrders = [];
   
   // Table Reservations Data
   List<Map<String, dynamic>> _tableReservations = [];
-  String? _selectedSlotKey;
-  Map<String, int> _slotAvailable = {};
 
   @override
   void initState() {
@@ -39,7 +32,6 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
   @override
   void dispose() {
     _tabController.dispose();
-    for (final c in _capacityCtrls.values) { c.dispose(); }
     super.dispose();
   }
 
@@ -97,6 +89,9 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
               final mb = (tb is Timestamp) ? tb.toDate() : DateTime.tryParse('$tb') ?? DateTime.fromMillisecondsSinceEpoch(0);
               return mb.compareTo(ma);
             });
+          
+          // Debug: Print reservation count
+          print('Loaded ${_tableReservations.length} reservations for restaurant ${user.uid}');
           _isLoading = false;
         });
       }
@@ -113,23 +108,6 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
     }
   }
 
-  Future<void> _loadSlotAvailability() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _selectedSlotKey == null) return;
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('restaurants')
-          .doc(user.uid)
-          .collection('table_slots')
-          .doc(_selectedSlotKey)
-          .get();
-      if (!mounted) return;
-      final data = doc.data();
-      setState(() {
-        _slotAvailable = Map<String, int>.from((data?['available'] ?? {}).map((k, v) => MapEntry(k as String, (v as num).toInt())));
-      });
-    } catch (_) {}
-  }
 
   Future<void> _updateFoodOrderStatus(String orderId, String newStatus) async {
     try {
@@ -161,7 +139,7 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
   Future<void> _updateTableReservation(String reservationId, String status) async {
     try {
       await FirebaseFirestore.instance
-          .collection('table_reservations')
+          .collection('reservations')
           .doc(reservationId)
           .update({
         'status': status,
@@ -183,6 +161,74 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
         );
       }
     }
+  }
+
+  Widget _buildFoodOrdersTab() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'pending',
+                  label: Text('Pending'),
+                ),
+                ButtonSegment(
+                  value: 'completed',
+                  label: Text('Completed'),
+                ),
+                ButtonSegment(
+                  value: 'cancelled',
+                  label: Text('Cancelled'),
+                ),
+              ],
+              selected: {_selectedFoodOrderStatus},
+              onSelectionChanged: (Set<String> selection) {
+                setState(() {
+                  _selectedFoodOrderStatus = selection.first;
+                  _loadOrders();
+                });
+              },
+            ),
+          ),
+        ),
+        Expanded(child: _buildFoodOrdersList()),
+      ],
+    );
+  }
+
+  Widget _buildTableReservationsTab() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Table Reservations',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Manage incoming table reservation requests',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: _buildTableReservationsList()),
+      ],
+    );
   }
 
   Widget _buildFoodOrdersList() {
@@ -225,7 +271,7 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
                       ),
                     ),
                     Text(
-                      '₹${order['totalAmount']}',
+                      DateFormatUtil.formatCurrencyIndian((order['totalAmount'] as num).toDouble()),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -273,85 +319,17 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
     );
   }
 
-  Future<void> _openTotalsDialog() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    await showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Total Tables by Capacity'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final cap in [2,4,6,8])
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      SizedBox(width: 80, child: Text('${cap} seats')),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _capacityCtrls[cap],
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Total tables',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final Map<int, int> totals = {};
-                for (final entry in _capacityCtrls.entries) {
-                  final val = int.tryParse(entry.value.text.trim()) ?? 0;
-                  totals[entry.key] = val;
-                }
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('restaurants')
-                      .doc(user.uid)
-                      .collection('table_totals')
-                      .doc('base')
-                      .set({
-                    'totals': totals.map((k, v) => MapEntry(k.toString(), v)),
-                    'updatedAt': FieldValue.serverTimestamp(),
-                  }, SetOptions(merge: true));
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Table totals saved')),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error saving totals: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   Widget _buildTableReservationsList() {
-    if (_tableReservations.isEmpty) {
+    // Ensure we only show actual reservations from database
+    final validReservations = _tableReservations.where((reservation) {
+      // Check if reservation has required fields and is not empty
+      return reservation['id'] != null && 
+             reservation['customerName'] != null && 
+             reservation['customerName'].toString().isNotEmpty;
+    }).toList();
+    
+    if (validReservations.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -362,6 +340,36 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
               'No table reservations',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'When customers book tables, their requests will appear here',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[600], size: 24),
+                  const SizedBox(height: 8),
+                  Text(
+                    'This page shows only real reservation requests from customers',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       );
@@ -369,9 +377,9 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _tableReservations.length,
+      itemCount: validReservations.length,
       itemBuilder: (context, index) {
-        final reservation = _tableReservations[index];
+        final reservation = validReservations[index];
         final status = reservation['status'] ?? 'pending';
         
         return Card(
@@ -384,11 +392,13 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Table for ${reservation['guests']} guests',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    Expanded(
+                      child: Text(
+                        'Table for ${reservation['numberOfGuests'] ?? reservation['guests'] ?? 'N/A'} guests',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                     _buildStatusChip(status),
@@ -396,17 +406,37 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Customer: ${reservation['customerName']}',
+                  'Customer: ${reservation['customerName'] ?? 'Unknown'}',
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Date: ${DateFormatUtil.formatDateIndian((reservation['reservationDate'] as Timestamp).toDate())}',
+                  'Date: ${_formatReservationDate(reservation['reservationDate'])}',
                   style: const TextStyle(fontSize: 14),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  'Time: ${reservation['reservationTime']}',
+                  'Time: ${reservation['reservationTime'] ?? 'N/A'}',
                   style: const TextStyle(fontSize: 14),
+                ),
+                if (reservation['tableType'] != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Table Type: ${reservation['tableType']}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+                if (reservation['specialRequests'] != null && reservation['specialRequests'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Special Requests: ${reservation['specialRequests']}',
+                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Text(
+                  'Booked: ${_formatReservationDate(reservation['createdAt'])}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 if (status == 'pending') ...[
                   const SizedBox(height: 16),
@@ -414,19 +444,26 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => _updateTableReservation(reservation['id'], 'rejected'),
+                        onPressed: () => _updateTableReservation(reservation['id'], 'cancelled'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.red),
                         child: const Text('Reject'),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => _updateTableReservation(reservation['id'], 'completed'),
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Complete'),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () => _updateTableReservation(reservation['id'], 'confirmed'),
-                        child: const Text('Confirm'),
+                        child: const Text('Accept'),
+                      ),
+                    ],
+                  ),
+                ] else if (status == 'confirmed') ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _updateTableReservation(reservation['id'], 'completed'),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Mark Completed'),
                       ),
                     ],
                   ),
@@ -437,6 +474,17 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
         );
       },
     );
+  }
+
+  String _formatReservationDate(dynamic date) {
+    if (date == null) return 'N/A';
+    if (date is Timestamp) {
+      return DateFormatUtil.formatDateTimeIndian(date.toDate());
+    }
+    if (date is DateTime) {
+      return DateFormatUtil.formatDateTimeIndian(date);
+    }
+    return date.toString();
   }
 
   Widget _buildStatusChip(String status) {
@@ -486,95 +534,14 @@ class _RestaurantOrdersPageState extends State<RestaurantOrdersPage> with Single
             Tab(text: 'Table Reservations'),
           ],
         ),
-        actions: [
-          TextButton.icon(
-            onPressed: _openTotalsDialog,
-            icon: const Icon(Icons.event_seat, color: Colors.white),
-            label: const Text('Totals', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : TabBarView(
+              controller: _tabController,
               children: [
-                if (_tabController.index == 0)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    child: SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(
-                          value: 'pending',
-                          label: Text('Pending'),
-                        ),
-                        ButtonSegment(
-                          value: 'completed',
-                          label: Text('Completed'),
-                        ),
-                        ButtonSegment(
-                          value: 'cancelled',
-                          label: Text('Cancelled'),
-                        ),
-                      ],
-                      selected: {_selectedFoodOrderStatus},
-                      onSelectionChanged: (Set<String> selection) {
-                        setState(() {
-                          _selectedFoodOrderStatus = selection.first;
-                          _loadOrders();
-                        });
-                      },
-                    ),
-                  ),
-                if (_tabController.index == 1)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Select Slot to View Availability'),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                decoration: const InputDecoration(
-                                  labelText: 'Slot (YYYYMMDD_HHMM)',
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: (v) => _selectedSlotKey = v.trim(),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: _loadSlotAvailability,
-                              child: const Text('Load'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        if (_slotAvailable.isNotEmpty)
-                          Builder(builder: (context) {
-                            final List<String> caps = _slotAvailable.keys.toList();
-                            caps.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
-                            final chips = caps.map((k) => Chip(label: Text('${k}p: ${_slotAvailable[k]} available'))).toList();
-                            return Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: chips,
-                            );
-                          }),
-                      ],
-                    ),
-                  ),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildFoodOrdersList(),
-                      _buildTableReservationsList(),
-                    ],
-                  ),
-                ),
+                _buildFoodOrdersTab(),
+                _buildTableReservationsTab(),
               ],
             ),
     );

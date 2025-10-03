@@ -3,6 +3,7 @@ import '../models/restaurant.dart';
 import '../services/restaurant_service.dart';
 import '../services/review_service.dart';
 import 'restaurant_details_page.dart';
+import '../utils/date_format_util.dart';
 import 'dart:async';
 
 class SearchPage extends StatefulWidget {
@@ -241,8 +242,8 @@ class _SearchPageState extends State<SearchPage> {
                     max: 20000,
                     divisions: 20,
                     labels: RangeLabels(
-                      '₹${_priceRange.start.round()}',
-                      '₹${_priceRange.end.round()}',
+                      DateFormatUtil.formatCurrencyIndian(_priceRange.start),
+                      DateFormatUtil.formatCurrencyIndian(_priceRange.end),
                     ),
                     onChanged: (values) {
                       setModalState(() {

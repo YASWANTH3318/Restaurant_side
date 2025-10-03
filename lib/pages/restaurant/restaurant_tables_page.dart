@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/restaurant_service.dart';
 import '../../models/restaurant.dart';
+import '../../utils/date_format_util.dart';
 
 class RestaurantTablesPage extends StatefulWidget {
   const RestaurantTablesPage({super.key});
@@ -406,6 +407,44 @@ class _RestaurantTablesPageState extends State<RestaurantTablesPage> {
     );
   }
 
+  int _totalTables() {
+    return _tables.length;
+  }
+
+  int _totalCapacity() {
+    int total = 0;
+    for (final table in _tables) {
+      final dynamic capacityValue = table['capacity'];
+      if (capacityValue is int) {
+        total += capacityValue;
+      } else if (capacityValue is String) {
+        final int? parsed = int.tryParse(capacityValue);
+        if (parsed != null) total += parsed;
+      }
+    }
+    return total;
+  }
+
+  int _availableTables() {
+    return _tables.where((t) => (t['isAvailable'] ?? false) == true).length;
+  }
+
+  int _availableCapacity() {
+    int total = 0;
+    for (final table in _tables) {
+      if ((table['isAvailable'] ?? false) == true) {
+        final dynamic capacityValue = table['capacity'];
+        if (capacityValue is int) {
+          total += capacityValue;
+        } else if (capacityValue is String) {
+          final int? parsed = int.tryParse(capacityValue);
+          if (parsed != null) total += parsed;
+        }
+      }
+    }
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -439,57 +478,60 @@ class _RestaurantTablesPageState extends State<RestaurantTablesPage> {
                     ],
                   ),
                 )
-              : ListView.builder(
+              : ListView(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _tables.length,
-                  itemBuilder: (context, index) {
-                    final table = _tables[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
+                  children: [
+                    // Summary section
+                    Card(
+                      color: Colors.orange.withOpacity(0.1),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            const Text(
+                              'Table Summary',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
                             Row(
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    table['id'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
+                                  child: _SummaryTile(
+                                    title: 'Total Tables',
+                                    value: _totalTables().toString(),
+                                    icon: Icons.chair_alt,
                                   ),
                                 ),
-                                Switch(
-                                  value: table['isAvailable'],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _tables[index]['isAvailable'] = value;
-                                    });
-                                  },
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _SummaryTile(
+                                    title: 'Total Capacity',
+                                    value: _totalCapacity().toString(),
+                                    icon: Icons.people_outline,
+                                  ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text('Type: ${table['type']}'),
-                            Text('Capacity: ${table['capacity']} guests'),
-                            Text('Minimum Spend: ₹${table['minimumSpend']}'),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                TextButton.icon(
-                                  onPressed: () => _editTable(index),
-                                  icon: const Icon(Icons.edit),
-                                  label: const Text('Edit'),
+                                Expanded(
+                                  child: _SummaryTile(
+                                    title: 'Available Tables',
+                                    value: _availableTables().toString(),
+                                    icon: Icons.event_available,
+                                  ),
                                 ),
-                                TextButton.icon(
-                                  onPressed: () => _deleteTable(index),
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  label: const Text('Delete', 
-                                    style: TextStyle(color: Colors.red)
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _SummaryTile(
+                                    title: 'Available Capacity',
+                                    value: _availableCapacity().toString(),
+                                    icon: Icons.groups_2_outlined,
                                   ),
                                 ),
                               ],
@@ -497,8 +539,68 @@ class _RestaurantTablesPageState extends State<RestaurantTablesPage> {
                           ],
                         ),
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tables list
+                    ...List.generate(_tables.length, (index) {
+                      final table = _tables[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      table['id'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ),
+                                  Switch(
+                                    value: table['isAvailable'],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _tables[index]['isAvailable'] = value;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text('Type: ${table['type']}'),
+                              Text('Capacity: ${table['capacity']} guests'),
+                              Text('Minimum Spend: ${DateFormatUtil.formatCurrencyIndian((table['minimumSpend'] as num).toDouble())}'),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () => _editTable(index),
+                                    icon: const Icon(Icons.edit),
+                                    label: const Text('Edit'),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () => _deleteTable(index),
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    label: const Text('Delete', 
+                                      style: TextStyle(color: Colors.red)
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
       floatingActionButton: _tables.isEmpty
           ? null
@@ -509,3 +611,64 @@ class _RestaurantTablesPageState extends State<RestaurantTablesPage> {
     );
   }
 } 
+
+class _SummaryTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+
+  const _SummaryTile({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Theme.of(context).primaryColor),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

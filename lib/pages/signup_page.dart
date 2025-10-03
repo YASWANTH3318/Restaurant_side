@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
+import '../services/restaurant_auth_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -57,14 +58,14 @@ class _SignUpPageState extends State<SignUpPage> {
           return;
         }
 
-        // Create user with Firebase Auth and Firestore
-        final userCredential = await UserService.signUpWithEmail(
+        // Create restaurant user with RestaurantAuthService
+        final userCredential = await RestaurantAuthService.signUpRestaurant(
           email: email,
           password: _passwordController.text.trim(),
-          name: _nameController.text.trim(),
-          username: _usernameController.text.trim(),
+          restaurantName: _nameController.text.trim(),
+          ownerName: _nameController.text.trim(),
           phoneNumber: _phoneController.text.trim(),
-          role: _selectedRole,
+          address: null, // Can be added later
         );
 
         if (mounted) {

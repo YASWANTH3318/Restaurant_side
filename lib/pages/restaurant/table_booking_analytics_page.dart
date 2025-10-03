@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/date_format_util.dart';
 
 class TableBookingAnalyticsPage extends StatefulWidget {
@@ -10,45 +13,86 @@ class TableBookingAnalyticsPage extends StatefulWidget {
 }
 
 class _TableBookingAnalyticsPageState extends State<TableBookingAnalyticsPage> {
-  bool _isLoading = false;
+  bool _isLoading = true;
   String _selectedPeriod = 'This Week';
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _sub;
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
   
-  // Mock data for table bookings
-  final List<Map<String, dynamic>> _dailyBookings = [
-    {'day': 'Mon', 'bookings': 3, 'canceled': 1},
-    {'day': 'Tue', 'bookings': 5, 'canceled': 0},
-    {'day': 'Wed', 'bookings': 4, 'canceled': 1},
-    {'day': 'Thu', 'bookings': 7, 'canceled': 2},
-    {'day': 'Fri', 'bookings': 9, 'canceled': 1},
-    {'day': 'Sat', 'bookings': 12, 'canceled': 2},
-    {'day': 'Sun', 'bookings': 8, 'canceled': 1},
+  // Dynamic data for table bookings
+  List<Map<String, dynamic>> _dailyBookings = const [
+    {'day': 'Mon', 'bookings': 0, 'canceled': 0},
+    {'day': 'Tue', 'bookings': 0, 'canceled': 0},
+    {'day': 'Wed', 'bookings': 0, 'canceled': 0},
+    {'day': 'Thu', 'bookings': 0, 'canceled': 0},
+    {'day': 'Fri', 'bookings': 0, 'canceled': 0},
+    {'day': 'Sat', 'bookings': 0, 'canceled': 0},
+    {'day': 'Sun', 'bookings': 0, 'canceled': 0},
   ];
   
   // Table occupancy by time slots
-  final Map<String, int> _timeSlotOccupancy = {
-    '12:00 - 14:00': 6,
-    '14:00 - 16:00': 4,
-    '16:00 - 18:00': 2,
-    '18:00 - 20:00': 8,
-    '20:00 - 22:00': 7,
-  };
+  Map<String, int> _timeSlotOccupancy = const {};
   
   // Table size preference
-  final Map<String, int> _tableSizePreference = {
-    '2 Persons': 18,
-    '4 Persons': 12,
-    '6 Persons': 6,
-    '8+ Persons': 4,
-  };
+  Map<String, int> _tableSizePreference = const {};
   
   // Recent bookings
-  final List<Map<String, dynamic>> _recentBookings = [
-    {'customerName': 'John Smith', 'date': 'May 15, 2023', 'time': '7:30 PM', 'status': 'Confirmed'},
-    {'customerName': 'Alice Johnson', 'date': 'May 14, 2023', 'time': '6:00 PM', 'status': 'Confirmed'},
-    {'customerName': 'Robert Brown', 'date': 'May 14, 2023', 'time': '8:00 PM', 'status': 'Confirmed'},
-    {'customerName': 'Mary Williams', 'date': 'May 13, 2023', 'time': '7:00 PM', 'status': 'Canceled'},
-    {'customerName': 'David Miller', 'date': 'May 12, 2023', 'time': '6:30 PM', 'status': 'Confirmed'},
-  ];
+  List<Map<String, dynamic>> _recentBookings = const [];
+
+  int _totalBookings = 0;
+  int _occupancyRate = 0; // percentage
+  int _noShowRate = 0; // percentage
+
+  @override
+  void initState() {
+    super.initState();
+    _startStream();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _startStream() {
+    final user = _auth.currentUser;
+    if (user == null) { setState(() => _isLoading = false); return; }
+    _sub = _firestore
+        .collection('restaurants')
+        .doc(user.uid)
+        .collection('analytics')
+        .doc('table_bookings')
+        .snapshots()
+        .listen((doc) {
+      final data = doc.data();
+      setState(() {
+        // Daily bookings
+        final List<dynamic>? daily = data?['dailyBookings'] as List<dynamic>?;
+        if (daily != null && daily.isNotEmpty) {
+          _dailyBookings = daily.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+        // Time slot occupancy
+        final Map<String, dynamic>? occ = data?['timeSlotOccupancy'] as Map<String, dynamic>?;
+        if (occ != null) {
+          _timeSlotOccupancy = occ.map((k, v) => MapEntry(k, (v as num).toInt()));
+        }
+        // Table size preference
+        final Map<String, dynamic>? tsp = data?['tableSizePreference'] as Map<String, dynamic>?;
+        if (tsp != null) {
+          _tableSizePreference = tsp.map((k, v) => MapEntry(k, (v as num).toInt()));
+        }
+        // Recent bookings
+        final List<dynamic>? rb = data?['recentBookings'] as List<dynamic>?;
+        _recentBookings = rb?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? _recentBookings;
+        // Summary
+        _totalBookings = (data?['totalBookings'] as num?)?.toInt() ?? _totalBookings;
+        _occupancyRate = (data?['occupancyRate'] as num?)?.toInt() ?? _occupancyRate;
+        _noShowRate = (data?['noShowRate'] as num?)?.toInt() ?? _noShowRate;
+        _isLoading = false;
+      });
+    }, onError: (_) { setState(() => _isLoading = false); });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +217,7 @@ class _TableBookingAnalyticsPageState extends State<TableBookingAnalyticsPage> {
         Expanded(
           child: _buildSummaryCard(
             'Total Bookings',
-            '48',
+            _totalBookings.toString(),
             Icons.book_online,
             Colors.blue,
           ),
@@ -182,7 +226,7 @@ class _TableBookingAnalyticsPageState extends State<TableBookingAnalyticsPage> {
         Expanded(
           child: _buildSummaryCard(
             'Occupancy Rate',
-            '76%',
+            _occupancyRate > 0 ? '${_occupancyRate}%' : '0%',
             Icons.people,
             Colors.orange,
           ),
@@ -191,7 +235,7 @@ class _TableBookingAnalyticsPageState extends State<TableBookingAnalyticsPage> {
         Expanded(
           child: _buildSummaryCard(
             'No-Show Rate',
-            '5%',
+            _noShowRate > 0 ? '${_noShowRate}%' : '0%',
             Icons.person_off,
             Colors.red,
           ),
@@ -253,10 +297,12 @@ class _TableBookingAnalyticsPageState extends State<TableBookingAnalyticsPage> {
           ),
         ],
       ),
-      child: BarChart(
+      child: (_dailyBookings.isEmpty || _dailyBookings.every((d) => (d['bookings'] as num) == 0))
+          ? const Center(child: Text('No data available'))
+          : BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: 10, // Adjust based on your data
+          maxY: (_dailyBookings.fold<num>(0, (m, d) => ((d['bookings'] as num) > m ? (d['bookings'] as num) : m))).toDouble() + 2,
           barTouchData: BarTouchData(
             enabled: true,
             touchTooltipData: BarTouchTooltipData(
@@ -475,7 +521,7 @@ class _TableBookingAnalyticsPageState extends State<TableBookingAnalyticsPage> {
     }
     
     // If all values are 0, show empty state
-    if (_tableSizePreference.values.every((value) => value == 0)) {
+    if (_tableSizePreference.isEmpty || _tableSizePreference.values.every((value) => value == 0)) {
       return Container(
         height: 200,
         padding: const EdgeInsets.all(16),
@@ -615,20 +661,20 @@ class _TableBookingAnalyticsPageState extends State<TableBookingAnalyticsPage> {
               child: const Icon(Icons.event, color: Colors.orange, size: 20),
             ),
             title: Text(
-              booking['customerName'],
+              booking['customerName'] ?? 'Customer',
               style: const TextStyle(fontSize: 14),
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              '${booking['date']} at ${booking['time']}',
+              _formatRecentBookingSubtitle(booking),
               style: const TextStyle(fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
             trailing: Text(
-              booking['status'],
+              (booking['status'] ?? 'Pending').toString(),
               style: TextStyle(
                 fontSize: 12,
-                color: booking['status'] == 'Confirmed' ? Colors.green : Colors.red,
+                color: ((booking['status'] ?? '').toString().toLowerCase() == 'confirmed') ? Colors.green : Colors.red,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -637,5 +683,14 @@ class _TableBookingAnalyticsPageState extends State<TableBookingAnalyticsPage> {
         );
       },
     );
+  }
+
+  String _formatRecentBookingSubtitle(Map<String, dynamic> booking) {
+    final date = booking['date'];
+    if (date is Timestamp) {
+      final dt = date.toDate();
+      return '${DateFormatUtil.formatDateIndian(dt)} at ${booking['time'] ?? ''}';
+    }
+    return '${booking['date'] ?? ''} at ${booking['time'] ?? ''}';
   }
 } 
